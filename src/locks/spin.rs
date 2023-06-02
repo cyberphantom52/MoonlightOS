@@ -60,7 +60,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for SpinLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.try_lock() {
             Some(guard) => write!(f, "Mutex {{ data: ")
-                .and_then(|()| (&guard).fmt(f))
+                .and_then(|()| (&*guard).fmt(f))
                 .and_then(|()| write!(f, "}}")),
             None => write!(f, "Mutex {{ <locked> }}"),
         }
@@ -77,13 +77,13 @@ impl<T: ?Sized> Drop for SpinLockGuard<'_, T> {
 
 impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for SpinLockGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&*self, f)
+        fmt::Debug::fmt(&**self, f)
     }
 }
 
 impl<'a, T: ?Sized + fmt::Display> fmt::Display for SpinLockGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&*self, f)
+        fmt::Display::fmt(&**self, f)
     }
 }
 
@@ -98,7 +98,9 @@ impl<'a, T: ?Sized> Deref for SpinLockGuard<'a, T> {
 
 impl<'a, T: ?Sized> DerefMut for SpinLockGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.mutex.data.get() }
+        unsafe {
+            &mut *self.mutex.data.get()
+        }
     }
 }
 

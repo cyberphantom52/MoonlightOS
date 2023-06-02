@@ -38,13 +38,13 @@ unsafe impl<T: ?Sized> Sync for Mutex<T> {}
 
 impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for MutexGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&*self, f)
+        fmt::Debug::fmt(&**self, f)
     }
 }
 
 impl<'a, T: ?Sized + fmt::Display> fmt::Display for MutexGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&*self, f)
+        fmt::Display::fmt(&**self, f)
     }
 }
 
