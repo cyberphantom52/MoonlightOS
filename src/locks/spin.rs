@@ -3,12 +3,12 @@ use core::sync::atomic::{AtomicBool,Ordering};
 use core::fmt;
 use core::ops::{Deref, DerefMut};
 
-pub struct SpinLock<T> {
+pub struct SpinLock<T: ?Sized> {
     lock: AtomicBool,
     data: UnsafeCell<T>
 }
 
-pub struct SpinLockGuard<'a, T: 'a> {
+pub struct SpinLockGuard<'a, T: 'a + ?Sized> {
     mutex: &'a SpinLock<T>,
 }
 
@@ -20,7 +20,9 @@ impl<T> SpinLock<T> {
             data: UnsafeCell::new(data),
         }
     }
+}
 
+impl<T: ?Sized> SpinLock<T> {
     #[inline(always)]
     pub fn lock(&self) -> SpinLockGuard<T> {
         loop {
@@ -54,7 +56,7 @@ impl<T> SpinLock<T> {
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for SpinLock<T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for SpinLock<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.try_lock() {
             Some(guard) => write!(f, "Mutex {{ data: ")
@@ -65,27 +67,27 @@ impl<T: fmt::Debug> fmt::Debug for SpinLock<T> {
     }
 }
 
-unsafe impl<T> Sync for SpinLock<T> {}
+unsafe impl<T: ?Sized> Sync for SpinLock<T> {}
 
-impl<T> Drop for SpinLockGuard<'_, T> {
+impl<T: ?Sized> Drop for SpinLockGuard<'_, T> {
     fn drop(&mut self) {
         self.mutex.lock.store(false, Ordering::Release);
     }
 }
 
-impl<'a, T: fmt::Debug> fmt::Debug for SpinLockGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for SpinLockGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&*self, f)
     }
 }
 
-impl<'a, T: fmt::Display> fmt::Display for SpinLockGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Display> fmt::Display for SpinLockGuard<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&*self, f)
     }
 }
 
-impl<'a, T> Deref for SpinLockGuard<'a, T> {
+impl<'a, T: ?Sized> Deref for SpinLockGuard<'a, T> {
     type Target = T;
     fn deref(&self) -> &T {
         unsafe {
@@ -94,10 +96,10 @@ impl<'a, T> Deref for SpinLockGuard<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for SpinLockGuard<'a, T> {
+impl<'a, T: ?Sized> DerefMut for SpinLockGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.mutex.data.get() }
     }
 }
 
-unsafe impl<T> Sync for SpinLockGuard<'_, T> {}
+unsafe impl<T: ?Sized> Sync for SpinLockGuard<'_, T> {}
