@@ -72,7 +72,7 @@ pub struct Writer {
 // A `static mut` can solve the problem its highly discouraged as it can lead to data races.
 // An alternative is to use a spinlock. 
 use lazy_static::lazy_static;
-use spin::Mutex;
+use super::locks::mutex::Mutex;
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,

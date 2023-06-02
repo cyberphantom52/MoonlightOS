@@ -2,6 +2,7 @@
 #![no_main] // disable all Rust-level entry points
 
 mod vga_buffer;
+mod locks;
 
 use core::panic::PanicInfo;
 
