@@ -3,11 +3,12 @@
 #![test_runner(test_runner)] // use our custom test runner
 #![feature(custom_test_frameworks)] // enable custom test frameworks
 #![reexport_test_harness_main = "test_main"] // rename the test entry point
-
+#![feature(abi_x86_interrupt)]
 
 pub mod serial;
 pub mod vga_buffer;
 pub mod locks;
+pub mod interrupts;
 
 use core::panic::PanicInfo;
 
@@ -15,6 +16,10 @@ use core::panic::PanicInfo;
 pub enum QemuExitCode {
     Success = 0x10,
     Failed = 0x11,
+}
+
+pub fn init() {
+    interrupts::init_idt();
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
@@ -60,6 +65,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
 #[cfg(test)]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    init();
     test_main();
     loop {}
 }
