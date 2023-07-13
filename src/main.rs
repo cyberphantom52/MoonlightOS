@@ -16,6 +16,10 @@ pub extern "C" fn _start() -> ! {
     println!("Moonlight {}", "OS");
 
     moonlight_os::init();
+    // loop {
+    //     use moonlight_os::print;
+    //     print!("-");        
+    // }
 
     //Below line triggers a double fault exception
     // unsafe {
@@ -27,8 +31,8 @@ pub extern "C" fn _start() -> ! {
 
     #[cfg(test)]
     test_main();
-    // println!("It did not crash!");
-    loop {}
+    println!("It did not crash!");
+    moonlight_os::hlt_loop();
 }
 
 /// This function is called on panic.
@@ -42,5 +46,6 @@ fn panic(info: &PanicInfo) -> ! {
 #[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    moonlight_os::test_panic_handler(info)
+    println!("{}", info);
+    moonlight_os::hlt_loop();
 }
