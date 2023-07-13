@@ -13,6 +13,11 @@ uart_16550 = "0.2.0"
 version = "1.0"
 features = ["spin_no_std"]
 
+[[test]]
+name = "stack_overflow"
+harness = false
+
+
 [package.metadata.bootimage]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-display", "none"

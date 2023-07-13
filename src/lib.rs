@@ -3,12 +3,13 @@
 #![test_runner(test_runner)] // use our custom test runner
 #![feature(custom_test_frameworks)] // enable custom test frameworks
 #![reexport_test_harness_main = "test_main"] // rename the test entry point
-#![feature(abi_x86_interrupt)]
+#![feature(abi_x86_interrupt)]  //This error occurs because the x86-interrupt calling convention is still unstable. To use it anyway, we have to explicitly enable it by adding #![feature(abi_x86_interrupt)]
 
 pub mod serial;
 pub mod vga_buffer;
 pub mod locks;
 pub mod interrupts;
+pub mod gdt;
 
 use core::panic::PanicInfo;
 
@@ -19,6 +20,7 @@ pub enum QemuExitCode {
 }
 
 pub fn init() {
+    gdt::init();
     interrupts::init_idt();
 }
 
