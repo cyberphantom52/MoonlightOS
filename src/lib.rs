@@ -3,18 +3,35 @@
 #![test_runner(test_runner)] // use our custom test runner
 #![feature(custom_test_frameworks)] // enable custom test frameworks
 #![reexport_test_harness_main = "test_main"] // rename the test entry point
-
+#![feature(abi_x86_interrupt)]  //This error occurs because the x86-interrupt calling convention is still unstable. To use it anyway, we have to explicitly enable it by adding #![feature(abi_x86_interrupt)]
 
 pub mod serial;
 pub mod vga_buffer;
 pub mod locks;
+pub mod interrupts;
+pub mod gdt;
 
 use core::panic::PanicInfo;
+
+// use x86_64::instructions::hlt;
 
 #[repr(u32)]
 pub enum QemuExitCode {
     Success = 0x10,
     Failed = 0x11,
+}
+
+pub fn init() {
+    gdt::init();
+    interrupts::init_idt();
+    unsafe { interrupts::PICS.lock().initialize() };
+    x86_64::instructions::interrupts::enable(); 
+}
+
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
@@ -53,15 +70,16 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failed);
-    loop {}
+    hlt_loop();
 }
 
 /// Entry point for `cargo test`
 #[cfg(test)]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    init();
     test_main();
-    loop {}
+    hlt_loop();
 }
 
 #[cfg(test)]
