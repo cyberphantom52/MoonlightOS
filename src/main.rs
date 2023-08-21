@@ -5,35 +5,41 @@
 #![reexport_test_harness_main = "test_main"]
 
 use moonlight_os::println;
-
+use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
+use x86_64::{structures::paging::Page, VirtAddr};
+use moonlight_os::memory::BootInfoFrameAllocator;
+use moonlight_os::memory;
+
+
+entry_point!(kernel_main);
 
 #[no_mangle] // don't mangle the name of this function
-pub extern "C" fn _start() -> ! {
-    // this function is the entry point, since the linker looks for a function
-    // named `_start` by default
+fn kernel_main(boot_info: &'static BootInfo) -> !{
 
-    println!("Moonlight {}", "OS");
 
+    println!("Moonlight OS{}", "!");
     moonlight_os::init();
-    // loop {
-    //     use moonlight_os::print;
-    //     print!("-");        
-    // }
 
-    //Below line triggers a double fault exception
-    // unsafe {
-    //     *(0xdeadbeef as *mut u8) = 42;
-    // };
+    
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe {memory::init(phys_mem_offset)};
+    let mut frame_allocator = unsafe {
+        BootInfoFrameAllocator::init(&boot_info.memory_map)
+    };
+    
+    let page = Page::containing_address(VirtAddr::new(0xdeadbeaf000));
+    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
 
-    //Below line triggers a breakpoint exception
-    // x86_64::instructions::interrupts::int3();
-
+    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
+    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
+     
     #[cfg(test)]
     test_main();
-    println!("It did not crash!");
+    println!("It did not crash");
     moonlight_os::hlt_loop();
 }
+
 
 /// This function is called on panic.
 #[cfg(not(test))]
