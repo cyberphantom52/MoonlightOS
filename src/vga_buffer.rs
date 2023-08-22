@@ -136,7 +136,7 @@ impl Writer {
             let row = BUFFER_HEIGHT - 1;
             let col = self.column_position;
             let blank = ScreenChar {
-                ascii_char: b' ',
+                ascii_char: b'\0',
                 color_code: self.color_code,
             };
             self.buffer.chars[row][col].write(blank);
