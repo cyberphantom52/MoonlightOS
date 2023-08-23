@@ -4,7 +4,7 @@ use crate::println;
 use crate::vga_buffer::WRITER;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
-use super::locks::mutex::Mutex;
+use crate::locks::mutex::Mutex;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 #[derive(Debug, Clone, Copy)]

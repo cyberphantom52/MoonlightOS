@@ -9,10 +9,11 @@ pub mod serial;
 pub mod vga_buffer;
 pub mod locks;
 pub mod interrupts;
-pub mod gdt;
 pub mod memory;
 
 use core::panic::PanicInfo;
+use interrupts::gdt;
+use interrupts::interrupts as Interrupts;
 
 // use x86_64::instructions::hlt;
 
@@ -24,8 +25,8 @@ pub enum QemuExitCode {
 
 pub fn init() {
     gdt::init();
-    interrupts::init_idt();
-    unsafe { interrupts::PICS.lock().initialize() };
+    Interrupts::init_idt();
+    unsafe { Interrupts::PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable(); 
 }
 
