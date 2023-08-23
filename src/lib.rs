@@ -4,6 +4,7 @@
 #![feature(custom_test_frameworks)] // enable custom test frameworks
 #![reexport_test_harness_main = "test_main"] // rename the test entry point
 #![feature(abi_x86_interrupt)]  //This error occurs because the x86-interrupt calling convention is still unstable. To use it anyway, we have to explicitly enable it by adding #![feature(abi_x86_interrupt)]
+#![feature(naked_functions)]
 
 pub mod serial;
 pub mod vga_buffer;

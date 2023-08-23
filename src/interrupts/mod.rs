@@ -1,3 +1,3 @@
 pub mod gdt;
-pub mod interrupts;
 pub mod idt;
+pub mod interrupts;
