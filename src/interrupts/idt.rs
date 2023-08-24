@@ -1,69 +1,22 @@
 use bit_field::BitField;
-use core::marker::PhantomData;
-use x86_64::{registers::segmentation::Segment, VirtAddr};
+use x86_64::registers::segmentation::Segment;
+use super::exceptions;
+
+const IDT_ENTRIES: usize = 256;
 
 // Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table
-#[derive(Clone)]
 #[repr(C)]
 #[repr(align(16))]
 pub struct InterruptDescriptorTable {
-    pub divide_error: IdtEntry<HandlerFunc>,
-    pub debug: IdtEntry<HandlerFunc>,
-    pub non_maskable_interrupt: IdtEntry<HandlerFunc>,
-    pub breakpoint: IdtEntry<HandlerFunc>,
-    pub overflow: IdtEntry<HandlerFunc>,
-    pub bound_range_exceeded: IdtEntry<HandlerFunc>,
-    pub invalid_opcode: IdtEntry<HandlerFunc>,
-    pub device_not_available: IdtEntry<HandlerFunc>,
-    pub double_fault: IdtEntry<DivergingHandlerFuncWithErrCode>,
-    coprocessor_segment_overrun: IdtEntry<HandlerFunc>,
-    pub invalid_tss: IdtEntry<HandlerFuncWithErrCode>,
-    pub segment_not_present: IdtEntry<HandlerFuncWithErrCode>,
-    pub stack_segment_fault: IdtEntry<HandlerFuncWithErrCode>,
-    pub general_protection_fault: IdtEntry<HandlerFuncWithErrCode>,
-    pub page_fault: IdtEntry<PageFaultHandlerFunc>,
-    reserved_1: IdtEntry<HandlerFunc>,
-    pub x87_floating_point: IdtEntry<HandlerFunc>,
-    pub alignment_check: IdtEntry<HandlerFuncWithErrCode>,
-    pub machine_check: IdtEntry<DivergingHandlerFunc>,
-    pub simd_floating_point: IdtEntry<HandlerFunc>,
-    pub virtualization: IdtEntry<HandlerFunc>,
-    reserved_2: [IdtEntry<HandlerFunc>; 9],
-    pub security_exception: IdtEntry<HandlerFuncWithErrCode>,
-    reserved_3: IdtEntry<HandlerFunc>,
-    interrupts: [IdtEntry<HandlerFunc>; 256 - 32],
+    entries: [IdtEntry; IDT_ENTRIES],
 }
 
 impl InterruptDescriptorTable {
     /// Creates a new IDT filled with non-present entries.
     #[inline]
-    pub const fn new() -> InterruptDescriptorTable {
+    pub fn new() -> InterruptDescriptorTable {
         InterruptDescriptorTable {
-            divide_error: IdtEntry::missing(),
-            debug: IdtEntry::missing(),
-            non_maskable_interrupt: IdtEntry::missing(),
-            breakpoint: IdtEntry::missing(),
-            overflow: IdtEntry::missing(),
-            bound_range_exceeded: IdtEntry::missing(),
-            invalid_opcode: IdtEntry::missing(),
-            device_not_available: IdtEntry::missing(),
-            double_fault: IdtEntry::missing(),
-            coprocessor_segment_overrun: IdtEntry::missing(),
-            invalid_tss: IdtEntry::missing(),
-            segment_not_present: IdtEntry::missing(),
-            stack_segment_fault: IdtEntry::missing(),
-            general_protection_fault: IdtEntry::missing(),
-            page_fault: IdtEntry::missing(),
-            reserved_1: IdtEntry::missing(),
-            x87_floating_point: IdtEntry::missing(),
-            alignment_check: IdtEntry::missing(),
-            machine_check: IdtEntry::missing(),
-            simd_floating_point: IdtEntry::missing(),
-            virtualization: IdtEntry::missing(),
-            reserved_2: [IdtEntry::missing(); 9],
-            security_exception: IdtEntry::missing(),
-            reserved_3: IdtEntry::missing(),
-            interrupts: [IdtEntry::missing(); 256 - 32],
+            entries: [IdtEntry::missing(); IDT_ENTRIES],
         }
     }
 
@@ -78,69 +31,19 @@ impl InterruptDescriptorTable {
             core::arch::asm!("lidt [{}]", in(reg) &descriptor);
         }
     }
-}
 
-impl core::ops::Index<usize> for InterruptDescriptorTable {
-    type Output = IdtEntry<HandlerFunc>;
 
-    /// Returns the IDT entry with the specified index.
-    ///
-    /// Panics if index is outside the IDT (i.e. greater than 255) or if the entry is an
-    /// exception that pushes an error code (use the struct fields for accessing these entries).
-    #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        match index {
-            0 => &self.divide_error,
-            1 => &self.debug,
-            2 => &self.non_maskable_interrupt,
-            3 => &self.breakpoint,
-            4 => &self.overflow,
-            5 => &self.bound_range_exceeded,
-            6 => &self.invalid_opcode,
-            7 => &self.device_not_available,
-            9 => &self.coprocessor_segment_overrun,
-            16 => &self.x87_floating_point,
-            19 => &self.simd_floating_point,
-            20 => &self.virtualization,
-            i @ 32..=255 => &self.interrupts[i - 32],
-            i @ 15 | i @ 31 | i @ 21..=29 => panic!("entry {} is reserved", i),
-            i @ 8 | i @ 10..=14 | i @ 17 | i @ 30 => {
-                panic!("entry {} is an exception with error code", i)
-            }
-            i @ 18 => panic!("entry {} is an diverging exception (must not return)", i),
-            i => panic!("no entry with index {}", i),
-        }
+    pub fn add(&mut self, int: usize, handler: u64) {
+        self.entries[int].set_handler_addr(handler);
     }
-}
-
-impl core::ops::IndexMut<usize> for InterruptDescriptorTable {
-    /// Returns a mutable reference to the IDT entry with the specified index.
-    ///
-    /// Panics if index is outside the IDT (i.e. greater than 255) or if the entry is an
-    /// exception that pushes an error code (use the struct fields for accessing these entries).
-    #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        match index {
-            0 => &mut self.divide_error,
-            1 => &mut self.debug,
-            2 => &mut self.non_maskable_interrupt,
-            3 => &mut self.breakpoint,
-            4 => &mut self.overflow,
-            5 => &mut self.bound_range_exceeded,
-            6 => &mut self.invalid_opcode,
-            7 => &mut self.device_not_available,
-            9 => &mut self.coprocessor_segment_overrun,
-            16 => &mut self.x87_floating_point,
-            19 => &mut self.simd_floating_point,
-            20 => &mut self.virtualization,
-            i @ 32..=255 => &mut self.interrupts[i - 32],
-            i @ 15 | i @ 31 | i @ 21..=28 => panic!("entry {} is reserved", i),
-            i @ 8 | i @ 10..=14 | i @ 17 | i @ 29 | i @ 30 => {
-                panic!("entry {} is an exception with error code", i)
-            }
-            i @ 18 => panic!("entry {} is an diverging exception (must not return)", i),
-            i => panic!("no entry with index {}", i),
-        }
+    
+    //add exception handlers for various cpu exceptions
+    pub fn add_exceptions(&mut self) {
+        self.add(0x0, exceptions::div_error as u64);
+        self.add(0x6, exceptions::invalid_opcode as u64);
+        self.add(0x8, exceptions::double_fault as u64);
+        self.add(0xd, exceptions::general_protection_fault as u64);
+        self.add(0xe, exceptions::page_fault as u64);
     }
 }
 
@@ -153,36 +56,34 @@ pub struct IdtDescriptor {
 // 128-bits - 16 bytes
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct IdtEntry<F> {
+pub struct IdtEntry {
     offset_lower: u16,
     gdt_selector: u16,
     options: IdtEntryOptions,
     offset_middle: u16,
     offset_high: u32,
     reserved: u32,
-    phantom: PhantomData<F>,
 }
 
-impl<F> IdtEntry<F> {
+impl IdtEntry {
     /// Creates a non-present IDT entry (but sets the must-be-one bits).
     #[inline]
-    pub const fn missing() -> Self {
-        IdtEntry {
+    pub fn missing() -> Self {
+        let mut entry = IdtEntry {
             offset_lower: 0,
             gdt_selector: 0,
             options: IdtEntryOptions::minimal(),
             offset_middle: 0,
             offset_high: 0,
             reserved: 0,
-            phantom: PhantomData,
-        }
+        };
+        entry.set_handler_addr(exceptions::generic_handler as u64);
+        entry
     }
 
     #[inline]
-    fn set_handler_addr(&mut self, addr: VirtAddr) -> &mut IdtEntryOptions {
+    fn set_handler_addr(&mut self, addr: u64) {
         use x86_64::instructions::segmentation;
-
-        let addr = addr.as_u64();
 
         self.offset_lower = addr as u16;
         self.offset_middle = (addr >> 16) as u16;
@@ -191,54 +92,8 @@ impl<F> IdtEntry<F> {
         self.gdt_selector = segmentation::CS::get_reg().0;
 
         self.options.set_present(true);
-        &mut self.options
     }
 }
-
-impl<T> PartialEq for IdtEntry<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.offset_lower == other.offset_lower
-            && self.gdt_selector == other.gdt_selector
-            && self.options == other.options
-            && self.offset_middle == other.offset_middle
-            && self.offset_high == other.offset_high
-            && self.reserved == other.reserved
-    }
-}
-
-pub type HandlerFunc = extern "x86-interrupt" fn(InterruptStackFrame);
-pub type HandlerFuncWithErrCode = extern "x86-interrupt" fn(InterruptStackFrame, error_code: u64);
-pub type PageFaultHandlerFunc = extern "x86-interrupt" fn(InterruptStackFrame, error_code: u64);
-pub type DivergingHandlerFunc = extern "x86-interrupt" fn(InterruptStackFrame) -> !;
-pub type DivergingHandlerFuncWithErrCode = extern "x86-interrupt" fn(InterruptStackFrame, error_code: u64) -> !;
-
-/// A general handler function for an interrupt or an exception with the interrupt/exceptions's index and an optional error code.
-pub type GeneralHandlerFunc = fn(InterruptStackFrame, index: u8, error_code: Option<u64>);
-
-macro_rules! impl_set_handler_fn {
-    ($h:ty) => {
-        impl IdtEntry<$h> {
-            /// Set the handler function for the IDT entry and sets the present bit.
-            ///
-            /// For the code selector field, this function uses the code segment selector currently
-            /// active in the CPU.
-            ///
-            /// The function returns a mutable reference to the entry's options that allows
-            /// further customization.
-            #[inline]
-            pub fn set_handler_fn(&mut self, handler: $h) -> &mut IdtEntryOptions {
-                let handler = VirtAddr::new(handler as u64);
-                self.set_handler_addr(handler)
-            }
-        }
-    };
-}
-
-impl_set_handler_fn!(HandlerFunc);
-impl_set_handler_fn!(HandlerFuncWithErrCode);
-// impl_set_handler_fn!(PageFaultHandlerFunc);
-impl_set_handler_fn!(DivergingHandlerFunc);
-impl_set_handler_fn!(DivergingHandlerFuncWithErrCode);
 
 /// Represents the options field of an IDT entry.
 /// | Bit   | Name	                      | Description
@@ -329,72 +184,5 @@ impl PrivilegeLevel {
             3 => PrivilegeLevel::Ring3,
             i => panic!("{} is not a valid privilege level", i),
         }
-    }
-}
-
-/// Wrapper type for the interrupt stack frame pushed by the CPU.
-///
-/// This type derefs to an [`InterruptStackFrameValue`], which allows reading the actual values.
-///
-/// This wrapper type ensures that no accidental modification of the interrupt stack frame
-/// occurs, which can cause undefined behavior (see the [`as_mut`](InterruptStackFrame::as_mut)
-/// method for more information).
-#[repr(C)]
-pub struct InterruptStackFrame {
-    value: InterruptStackFrameValue,
-}
-
-
-impl core::ops::Deref for InterruptStackFrame {
-    type Target = InterruptStackFrameValue;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-impl core::fmt::Debug for InterruptStackFrame {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        self.value.fmt(f)
-    }
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct InterruptStackFrameValue {
-    /// This value points to the instruction that should be executed when the interrupt
-    /// handler returns. For most interrupts, this value points to the instruction immediately
-    /// following the last executed instruction. However, for some exceptions (e.g., page faults),
-    /// this value points to the faulting instruction, so that the instruction is restarted on
-    /// return. See the documentation of the [`InterruptDescriptorTable`] fields for more details.
-    pub instruction_pointer: VirtAddr,
-    /// The code segment selector, padded with zeros.
-    pub code_segment: u64,
-    /// The flags register before the interrupt handler was invoked.
-    pub cpu_flags: u64,
-    /// The stack pointer at the time of the interrupt.
-    pub stack_pointer: VirtAddr,
-    /// The stack segment descriptor at the time of the interrupt (often zero in 64-bit mode).
-    pub stack_segment: u64,
-}
-
-impl core::fmt::Debug for InterruptStackFrameValue {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        struct Hex(u64);
-        impl core::fmt::Debug for Hex {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                write!(f, "{:#x}", self.0)
-            }
-        }
-
-        let mut s = f.debug_struct("InterruptStackFrame");
-        s.field("instruction_pointer", &self.instruction_pointer);
-        s.field("code_segment", &self.code_segment);
-        s.field("cpu_flags", &Hex(self.cpu_flags));
-        s.field("stack_pointer", &self.stack_pointer);
-        s.field("stack_segment", &self.stack_segment);
-        s.finish()
     }
 }

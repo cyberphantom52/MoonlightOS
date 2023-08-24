@@ -27,7 +27,7 @@ pub enum QemuExitCode {
 pub fn init() {
     gdt::init();
     Interrupts::init_idt();
-    unsafe { Interrupts::PICS.lock().initialize() };
+    unsafe { crate::interrupts::timer::PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable(); 
 }
 
