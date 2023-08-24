@@ -1,8 +1,5 @@
-use crate::println;
-
 use bit_field::BitField;
-use volatile::Volatile;
-use core::{arch::asm, marker::PhantomData};
+use core::marker::PhantomData;
 use x86_64::{registers::segmentation::Segment, VirtAddr};
 
 // Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table
@@ -249,7 +246,7 @@ macro_rules! impl_set_handler_fn {
             #[inline]
             pub fn set_handler_fn(&mut self, handler: $h) -> &mut IdtEntryOptions {
                 let handler = VirtAddr::new(handler as u64);
-                unsafe { self.set_handler_addr(handler) }
+                self.set_handler_addr(handler)
             }
         }
     };
