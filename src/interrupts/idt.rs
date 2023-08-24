@@ -1,6 +1,6 @@
+use super::exceptions;
 use bit_field::BitField;
 use x86_64::registers::segmentation::Segment;
-use super::exceptions;
 
 const IDT_ENTRIES: usize = 256;
 
@@ -26,24 +26,23 @@ impl InterruptDescriptorTable {
             size: (core::mem::size_of::<InterruptDescriptorTable>() - 1) as u16,
             offset: self,
         };
-        crate::println!("[!] Loading IDT");
         unsafe {
             core::arch::asm!("lidt [{}]", in(reg) &descriptor);
         }
     }
 
-
     pub fn add(&mut self, int: usize, handler: u64) {
         self.entries[int].set_handler_addr(handler);
     }
-    
+
     //add exception handlers for various cpu exceptions
     pub fn add_exceptions(&mut self) {
-        self.add(0x0, exceptions::div_error as u64);
-        self.add(0x6, exceptions::invalid_opcode as u64);
-        self.add(0x8, exceptions::double_fault as u64);
-        self.add(0xd, exceptions::general_protection_fault as u64);
-        self.add(0xe, exceptions::page_fault as u64);
+        self.add(0x0, exceptions::div_error_handler as u64);
+        self.add(0x3, exceptions::breakpoint_handler as u64);
+        self.add(0x6, exceptions::invalid_opcode_handler as u64);
+        self.add(0x8, exceptions::double_fault_handler as u64);
+        self.add(0xd, exceptions::general_protection_fault_handler as u64);
+        self.add(0xe, exceptions::page_fault_handler as u64);
     }
 }
 
@@ -53,7 +52,7 @@ pub struct IdtDescriptor {
     offset: *const InterruptDescriptorTable, //pointer to idt
 }
 
-// 128-bits - 16 bytes
+/// Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Descriptor_2
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct IdtEntry {
@@ -96,14 +95,6 @@ impl IdtEntry {
 }
 
 /// Represents the options field of an IDT entry.
-/// | Bit   | Name	                      | Description
-/// | 0-2	| Interrupt Stack Table Index |	0: Don’t switch stacks 1-7: Switch to the n-th stack in the Interrupt Stack Table when this handler is called.
-/// | 3-7	| Reserved  
-/// | 8	    | 0: Interrupt Gate, 1: Trap Gate	If this bit is 0, interrupts are disabled when this handler is called.
-/// | 9-11  | must be one
-/// | 12	| must be zero
-/// | 13‑14	| Descriptor Privilege Level (DPL)	The minimal privilege level required for calling this handler.
-/// | 15	| Present
 #[derive(Copy, Clone, PartialEq)]
 #[repr(transparent)]
 pub struct IdtEntryOptions(u16);
@@ -184,5 +175,53 @@ impl PrivilegeLevel {
             3 => PrivilegeLevel::Ring3,
             i => panic!("{} is not a valid privilege level", i),
         }
+    }
+}
+
+/// Wrapper type for the interrupt stack frame pushed by the CPU.
+///
+/// This wrapper type ensures that no accidental modification of the interrupt stack frame
+/// occurs, which can cause undefined behavior.
+#[repr(C)]
+pub struct InterruptStackFrame {
+    value: InterruptStackFrameValue,
+}
+
+impl core::fmt::Debug for InterruptStackFrame {
+    #[inline]
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+/// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.
+#[derive(Clone)]
+#[repr(C)]
+pub struct InterruptStackFrameValue {
+    /// This value points to the instruction that should be executed when the interrupt
+    /// handler returns. For most interrupts, this value points to the instruction immediately
+    /// following the last executed instruction. However, for some exceptions (e.g., page faults),
+    /// this value points to the faulting instruction, so that the instruction is restarted on
+    /// return.
+    pub instruction_pointer: u64,
+    /// The code segment selector, padded with zeros.
+    pub code_segment: u64,
+    /// The flags register before the interrupt handler was invoked.
+    pub cpu_flags: u64,
+    /// The stack pointer at the time of the interrupt.
+    pub stack_pointer: u64,
+    /// The stack segment descriptor at the time of the interrupt (often zero in 64-bit mode).
+    pub stack_segment: u64,
+}
+
+impl core::fmt::Debug for InterruptStackFrameValue {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("InterruptStackFrame")
+            .field("instruction_pointer", &self.instruction_pointer)
+            .field("code_segment", &self.code_segment)
+            .field("cpu_flags", &self.cpu_flags)
+            .field("stack_pointer", &self.stack_pointer)
+            .field("stack_segment", &self.stack_segment)
+            .finish()
     }
 }

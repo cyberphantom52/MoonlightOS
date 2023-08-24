@@ -1,117 +1,40 @@
-
-use crate::println;
-use core::arch::asm;
+use super::idt::InterruptStackFrame;
 
 //CPU EXCEPTIONS HANDLERS
-
-//handle excpetion based on interrupt number
-#[no_mangle]
-pub extern "C" fn exception_handler(int: u64, eip: u64, cs: u64, eflags: u64) {
-    match int {
-        0x00 => {
-            println!("DIVISION ERROR!");
-        }
-        0x06 => {
-            println!("INVALID OPCODE!");
-        }
-        0x08 => {
-            println!("DOUBLE FAULT!");
-        }
-        0x0D => {
-            println!("GENERAL PROTECTION FAULT!");
-        }
-        0x0E => {
-            println!("PAGE FAULT!");
-        }
-        0xFF => {
-            println!("EXCEPTION!");
-        }
-        0x20 => {
-            println!("TIMER INTERRUPT!");
-        }
-        _ => {
-            println!("EXCEPTION! not handled {}", int);
-        }
-    }
-    println!("EIP: {:X}, CS: {:X}, EFLAGS: {:b}", eip, cs, eflags);
-
-    loop {}
+// Reference: https://os.phil-opp.com/cpu-exceptions/#the-interrupt-calling-convention
+pub extern "x86-interrupt" fn div_error_handler(stack_frame: InterruptStackFrame) {
+    panic!("EXCEPTION: DIVISION ERROR\n{:#?}", stack_frame);
 }
 
-#[naked]
-pub extern "C" fn div_error() {
-    unsafe {
-        asm!(
-            "push 0x00",
-            "call exception_handler",
-            "add rsp, 4",
-            "iretd",
-            options(noreturn)
-        );
-    }
+pub extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
+    panic!("EXCEPTION: INVALID OPCODE\n{:#?}", stack_frame);
 }
 
-#[naked]
-pub extern "C" fn invalid_opcode() {
-    unsafe {
-        asm!(
-            "push 0x06",
-            "call exception_handler",
-            "add rsp, 4",
-            "iretd",
-            options(noreturn)
-        );
-    }
+pub extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    panic!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
 }
 
-#[naked]
-pub extern "C" fn double_fault() {
-    unsafe {
-        asm!(
-            "push 0x08",
-            "call exception_handler",
-            "add rsp, 4",
-            "iretd",
-            options(noreturn)
-        );
-    }
+pub extern "x86-interrupt" fn double_fault_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) -> ! {
+    panic!("EXCEPTION: DOUBLE FAULT\n{:#?}", stack_frame);
 }
 
-#[naked]
-pub extern "C" fn general_protection_fault() {
-    unsafe {
-        asm!(
-            "push 0x0d",
-            "call exception_handler",
-            "add rsp, 4",
-            "iretd",
-            options(noreturn)
-        );
-    }
+pub extern "x86-interrupt" fn general_protection_fault_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) -> ! {
+    panic!("EXCEPTION: GENERAL PROTECTION FAULT\n{:#?}", stack_frame);
 }
 
-#[naked]
-pub extern "C" fn page_fault() {
-    unsafe {
-        asm!(
-            "push 0x0e",
-            "call exception_handler",
-            "add rsp, 4",
-            "iretd",
-            options(noreturn)
-        );
-    }
+pub extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) -> ! {
+    panic!("EXCEPTION: PAGE FAULT\n{:#?}", stack_frame);
 }
 
-#[naked]
-pub extern "C" fn generic_handler() {
-    unsafe {
-        asm!(
-            "push 0xff",
-            "call exception_handler",
-            "add rsp, 4",
-            "iretd",
-            options(noreturn)
-        );
-    }
+pub extern "x86-interrupt" fn generic_handler(stack_frame: InterruptStackFrame) {
+    panic!("EXCEPTION: GENERIC\n{:#?}", stack_frame);
 }
