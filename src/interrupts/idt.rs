@@ -66,34 +66,16 @@ impl InterruptDescriptorTable {
             interrupts: [IdtEntry::missing(); 256 - 32],
         }
     }
-    // #[inline]
-    // pub fn load(&self) {
-    //     let descriptor = IdtDescriptor {
-    //         size: (core::mem::size_of::<InterruptDescriptorTable>() - 1) as u16,
-    //         offset: self,
-    //     };
-    //     println!("Loading IDT");
-    //     unsafe { asm!("lidt [{0:e}]", in(reg) &descriptor) }
-    // }
 
     #[inline]
-    pub fn load(&'static self) {
-        unsafe { self.load_unsafe() }
-    }
-
-    #[inline]
-    pub unsafe fn load_unsafe(&self) {
-        use x86_64::instructions::tables::lidt;
+    pub fn load(&self) {
+        let descriptor = IdtDescriptor {
+            size: (core::mem::size_of::<InterruptDescriptorTable>() - 1) as u16,
+            offset: self,
+        };
+        crate::println!("[!] Loading IDT");
         unsafe {
-            lidt(&self.pointer());
-        }
-    }
-
-    fn pointer(&self) -> x86_64::structures::DescriptorTablePointer {
-        use core::mem::size_of;
-        x86_64::structures::DescriptorTablePointer {
-            base: VirtAddr::new(self as *const _ as u64),
-            limit: (size_of::<Self>() - 1) as u16,
+            core::arch::asm!("lidt [{}]", in(reg) &descriptor);
         }
     }
 }
