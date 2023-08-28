@@ -11,7 +11,6 @@ use x86_64::{structures::paging::Page, VirtAddr};
 use moonlight_os::memory::BootInfoFrameAllocator;
 use moonlight_os::memory;
 
-
 entry_point!(kernel_main);
 
 #[no_mangle] // don't mangle the name of this function
@@ -33,7 +32,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> !{
 
     let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
     unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e)};
-     
+    
     #[cfg(test)]
     test_main();
     println!("It did not crash");
