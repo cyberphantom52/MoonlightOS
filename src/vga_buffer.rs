@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 #[repr(u8)]
-enum Color {
+pub enum Color {
     Black = 0,
     Blue = 1,
     Green = 2,
@@ -21,13 +21,13 @@ enum Color {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ColorCode(u8);
+pub struct ColorCode(u8);
 
 // Color bit of vga buffer uses MSB to determine if the char is blinking
 // The next three bits are used to set the background color
 // And the remaining 4 bits are used to set the foreground color
 impl ColorCode {
-    fn new(foreground: Color, background: Color) -> ColorCode {
+    pub fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
@@ -35,9 +35,9 @@ impl ColorCode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 // Each character in the vga buffer is of 2 bytes with the first being the char and 2nd being the byte
-struct ScreenChar {
+pub struct ScreenChar {
     ascii_char: u8,
-    color_code: ColorCode
+    pub color_code: ColorCode
 }
 
 // Standard size of VGA Buffer
@@ -50,15 +50,15 @@ const BUFFER_WIDTH: usize = 80;
 // Using volatile crate to avoid erroneous optimization of the Buffer
 use volatile::Volatile;
 #[repr(transparent)]
-struct Buffer {
+pub struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT]
 }
 
 
 pub struct Writer {
-    column_position: usize,
-    color_code: ColorCode,
-    buffer: &'static mut Buffer
+    pub column_position: usize,
+    pub color_code: ColorCode,
+    pub buffer: &'static mut Buffer
 }
 
 
@@ -84,6 +84,20 @@ lazy_static! {
 }
 
 impl Writer {
+
+    // pub fn clear_screen(&mut self) {
+    //     for row in 0..BUFFER_HEIGHT {
+    //         self.clear_row(row);
+    //     }
+    //     self.column_position = 0;
+    // }
+
+    pub fn set_colors(&mut self, foreground: Color, background: Color) {
+        self.color_code = ColorCode::new(foreground, background);
+    }
+    pub fn reset_colors(&mut self) {
+        self.color_code = ColorCode::new(Color::Yellow, Color::Black);
+    }
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),

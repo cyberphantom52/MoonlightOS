@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 
 use super::idt::InterruptStackFrame;
+use crate::shell::run_shell;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -25,6 +26,10 @@ pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
 pub static PICS: Mutex<ChainedPics> =
     Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+
+// Define a buffer to collect entered characters
+static mut ENTERED_BUFFER: [u8; 64] = [0; 64];
+static mut BUFFER_INDEX: usize = 0;
 
 extern "x86-interrupt" fn timer_interrupt_handler(_: &mut InterruptStackFrame) {
     unsafe {
@@ -50,12 +55,30 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode(character) => {
-                    // Backspace
-                    if character == '\u{8}' {
+                    // Handle newline
+                    if character == '\n' {
+                        unsafe {
+                            // Check if entered command is "shell"
+                            let command = core::str::from_utf8_unchecked(&ENTERED_BUFFER[0..BUFFER_INDEX]);
+                            if command.trim() == "shell" {
+                                // Execute the run_shell function
+                                run_shell();
+                            }
+
+                            // Clear the buffer for the next input
+                            BUFFER_INDEX = 0;
+                        }
+                    } else if character == '\u{8}' {
                         let mut writer = WRITER.lock();
                         writer.write_byte(b'\x08');
                     } else {
-                        print!("{}", character);
+                        unsafe {
+                            if BUFFER_INDEX < ENTERED_BUFFER.len() {
+                                ENTERED_BUFFER[BUFFER_INDEX] = character as u8;
+                                BUFFER_INDEX += 1;
+                                print!("{}", character);
+                            }
+                        }
                     }
                 }
 
