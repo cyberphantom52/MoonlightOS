@@ -4,15 +4,17 @@
 #![feature(custom_test_frameworks)] // enable custom test frameworks
 #![reexport_test_harness_main = "test_main"] // rename the test entry point
 #![feature(abi_x86_interrupt)]  //This error occurs because the x86-interrupt calling convention is still unstable. To use it anyway, we have to explicitly enable it by adding #![feature(abi_x86_interrupt)]
+#![feature(naked_functions)]
 
 pub mod serial;
 pub mod vga_buffer;
 pub mod locks;
 pub mod interrupts;
-pub mod gdt;
 pub mod memory;
 
 use core::panic::PanicInfo;
+use interrupts::gdt;
+use interrupts::interrupts as Interrupts;
 
 // use x86_64::instructions::hlt;
 
@@ -24,8 +26,8 @@ pub enum QemuExitCode {
 
 pub fn init() {
     gdt::init();
-    interrupts::init_idt();
-    unsafe { interrupts::PICS.lock().initialize() };
+    Interrupts::init_idt();
+    unsafe { Interrupts::PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable(); 
 }
 
