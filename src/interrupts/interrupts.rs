@@ -1,5 +1,5 @@
 use crate::{
-    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, print, vga_buffer::WRITER,
+    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, println, shell::shell::SHELL,
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -17,7 +17,12 @@ lazy_static! {
 }
 
 pub fn init_idt() {
+    println!("[!] Loading IDT");
+    println!("    [+] Setting up exceptions");
+    println!("    [+] Setting up PIC interrupts");
+    println!("    [+] Setting up keyboard interrupts");
     IDT.load();
+    println!("    [+] Done")
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -50,16 +55,19 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode(character) => {
+                    let mut shell = SHELL.lock();
                     // Backspace
-                    if character == '\u{8}' {
-                        let mut writer = WRITER.lock();
-                        writer.write_byte(b'\x08');
+                    if character == '\n' {
+                        shell.enter();
+                    } else if character == '\u{8}' {
+                        shell.backspace();
                     } else {
-                        print!("{}", character);
+                        shell.add(character);
                     }
+                    drop(shell);
                 }
 
-                DecodedKey::RawKey(key) => print!("{:?}", key),
+                _ => {}
             }
         }
     }

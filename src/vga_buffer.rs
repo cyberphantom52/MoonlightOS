@@ -1,6 +1,11 @@
+const NULLCHAR: ScreenChar = ScreenChar {
+    ascii_char: 0,
+    color_code: ColorCode(15),
+};
+
 #[allow(dead_code)]
 #[repr(u8)]
-enum Color {
+pub enum Color {
     Black = 0,
     Blue = 1,
     Green = 2,
@@ -56,6 +61,7 @@ struct Buffer {
 
 
 pub struct Writer {
+    row_position: usize,
     column_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer
@@ -75,8 +81,9 @@ use lazy_static::lazy_static;
 use super::locks::mutex::Mutex;
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
+        row_position: 0,
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color::LightGray, Color::Black),
         // 0xb8000 MMIO address for vga buffer
         // https://os.phil-opp.com/vga-text-mode/#the-vga-text-buffer
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
@@ -85,41 +92,40 @@ lazy_static! {
 
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
-        match byte {
-            b'\n' => self.new_line(),
-            b'\x08' => self.backspace(),
-            byte => {
-                if self.column_position >= BUFFER_WIDTH {
-                    self.new_line();
-                }
-
-                // Always print at the last line of buffer
-                let row = BUFFER_HEIGHT - 1;
-                let col = self.column_position;
-
-                let color_code = self.color_code;
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_char: byte,
-                    color_code,
-                });
-                
-                self.column_position += 1;
-            }
+        if self.column_position >= BUFFER_WIDTH {
+            self.new_line();
         }
+
+        let row = self.row_position;
+        let col = self.column_position;
+
+        self.buffer.chars[row][col].write(ScreenChar {
+            ascii_char: byte,
+            color_code: self.color_code,
+        });
+
+        self.column_position += 1;
+    }
+
+    pub fn write_char(&mut self, c: char) {
+        self.write_byte(c as u8);
+        self.set_cursor_position();
     }
 
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
                 // printable ASCII byte or newline
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
+                0x20..=0x7e => self.write_byte(byte),
+                b'\n' => self.new_line(),
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
         }
+        self.set_cursor_position();
     }
 
-    fn new_line(&mut self) {
+    pub fn scroll(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
@@ -127,31 +133,64 @@ impl Writer {
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
-        self.column_position = 0;
+        self.row_position -= 1;
     }
 
-    fn backspace(&mut self) {
-        if self.column_position > 0 {
-            self.column_position -= 1;
-            let row = BUFFER_HEIGHT - 1;
-            let col = self.column_position;
-            let blank = ScreenChar {
-                ascii_char: b'\0',
-                color_code: self.color_code,
-            };
-            self.buffer.chars[row][col].write(blank);
+    pub fn new_line(&mut self) {
+        self.row_position += 1;
+        self.column_position = 0;
+        
+        if self.row_position >= BUFFER_HEIGHT {
+            self.scroll();
         }
+        self.set_cursor_position();
+    }
+
+    pub fn backspace(&mut self) {
+        if self.column_position == 0 {
+            return;
+        }
+        
+        self.column_position -= 1;
+        let row = self.row_position;
+        let col = self.column_position;
+        self.buffer.chars[row][col].write(NULLCHAR);
+        self.set_cursor_position();
     }
 
     fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_char: b' ',
-            color_code: self.color_code,
-        };
-
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
+            self.buffer.chars[row][col].write(NULLCHAR);
         }
+    }
+
+    pub fn clear_screen(&mut self) {
+        for row in 0..BUFFER_HEIGHT {
+            self.clear_row(row);
+        }
+        self.row_position = 0;
+        self.column_position = 0;
+    }
+
+    // https://wiki.osdev.org/Text_Mode_Cursor#Moving_the_Cursor_2
+    pub fn set_cursor_position(&self) {
+        let index: usize = self.row_position * BUFFER_WIDTH + self.column_position;
+        
+        use core::arch::asm;
+        unsafe {
+            asm!("out dx, al", in("dx") 0x3d4, in("al") 0x0f as u8);
+            asm!("out dx, al", in("dx") 0x3d5, in("al") (index & 0xff) as u8);
+            asm!("out dx, al", in("dx") 0x3d4, in("al") 0x0e as u8);
+            asm!("out dx, al", in("dx") 0x3d5, in("al") ((index >> 8) & 0xff) as u8);
+        }
+    }
+
+    pub fn set_colors(&mut self, foreground: Color, background: Color) {
+        self.color_code = ColorCode::new(foreground, background);
+    }
+
+    pub fn reset_colors(&mut self) {
+        self.set_colors(Color::White, Color::Black);
     }
 }
 
