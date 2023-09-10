@@ -190,7 +190,7 @@ impl Writer {
     }
 
     pub fn reset_colors(&mut self) {
-        self.set_colors(Color::LightGray, Color::Black);
+        self.set_colors(Color::White, Color::Black);
     }
 }
 

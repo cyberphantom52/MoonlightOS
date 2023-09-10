@@ -25,7 +25,7 @@ impl Shell {
         self.cursor = 0;
 
         let mut writer = WRITER.lock();
-        writer.set_colors(Color::LightGreen, Color::Black);
+        writer.set_colors(Color::Pink, Color::Black);
         writer.write_string(PROMPT);
         writer.reset_colors();
         drop(writer);
