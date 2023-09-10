@@ -111,6 +111,7 @@ impl Writer {
 
     pub fn write_char(&mut self, c: char) {
         self.write_byte(c as u8);
+        self.set_cursor_position();
     }
 
     pub fn write_string(&mut self, s: &str) {
@@ -122,6 +123,7 @@ impl Writer {
                 _ => self.write_byte(0xfe),
             }
         }
+        self.set_cursor_position();
     }
 
     pub fn scroll(&mut self) {
@@ -142,6 +144,7 @@ impl Writer {
         if self.row_position >= BUFFER_HEIGHT {
             self.scroll();
         }
+        self.set_cursor_position();
     }
 
     pub fn backspace(&mut self) {
@@ -155,6 +158,7 @@ impl Writer {
             };
             self.buffer.chars[row][col].write(blank);
         }
+        self.set_cursor_position();
     }
 
     fn clear_row(&mut self, row: usize) {
@@ -174,6 +178,19 @@ impl Writer {
         }
         self.row_position = 0;
         self.column_position = 0;
+    }
+
+    // https://wiki.osdev.org/Text_Mode_Cursor#Moving_the_Cursor_2
+    pub fn set_cursor_position(&self) {
+        let index: usize = self.row_position * BUFFER_WIDTH + self.column_position - 1;
+        
+        use core::arch::asm;
+        unsafe {
+            asm!("out dx, al", in("dx") 0x3d4, in("al") 0x0f as u8);
+            asm!("out dx, al", in("dx") 0x3d5, in("al") (index & 0xff) as u8);
+            asm!("out dx, al", in("dx") 0x3d4, in("al") 0x0e as u8);
+            asm!("out dx, al", in("dx") 0x3d5, in("al") ((index >> 8) & 0xff) as u8);
+        }
     }
 
     pub fn set_colors(&mut self, foreground: Color, background: Color) {
