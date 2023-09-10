@@ -62,7 +62,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
                     drop(shell);
                 }
 
-                DecodedKey::RawKey(key) => print!("{:?}", key),
+                _ => {},
             }
         }
     }
