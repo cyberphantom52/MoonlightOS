@@ -8,7 +8,7 @@ const IDT_ENTRIES: usize = 256;
 #[repr(C)]
 #[repr(align(16))]
 pub struct InterruptDescriptorTable {
-    entries: [IdtEntry; IDT_ENTRIES],
+    pub entries: [IdtEntry; IDT_ENTRIES],
 }
 
 impl InterruptDescriptorTable {
@@ -91,6 +91,11 @@ impl IdtEntry {
         self.gdt_selector = segmentation::CS::get_reg().0;
 
         self.options.set_present(true);
+    }
+
+    #[inline]
+    pub unsafe fn set_stack_index(&mut self, index: u16) {
+        self.options.set_stack_index(index);
     }
 }
 
