@@ -8,14 +8,12 @@ const PROMPT: &str = "MoonlightOS> ";
 lazy_static! {
     pub static ref SHELL: Mutex<Shell> = Mutex::new(Shell {
         buffer: [0 as char; 256],
-        arg: [0 as char; 11],
         cursor: 0,
     });
 }
 
 pub struct Shell {
     buffer: [char; 256],
-    arg: [char; 11],
     cursor: usize,
 }
 
