@@ -1,5 +1,9 @@
 use crate::{
-    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, println, shell::shell::SHELL, instructions::{interrupts_enabled, disable_interrupts, enable_interrupts},
+    instructions::{disable_interrupts, enable_interrupts, interrupts_enabled},
+    interrupts::idt::InterruptDescriptorTable,
+    locks::mutex::Mutex,
+    println,
+    shell::shell::SHELL,
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -37,7 +41,7 @@ where
     }
 
     f();
-    
+
     if status {
         enable_interrupts();
     }
@@ -70,7 +74,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
     unsafe {
         core::arch::asm!("in al, dx", out("al") scancode, in("dx") 0x60 as u16);
     }
-    
+
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
