@@ -56,6 +56,7 @@ struct Buffer {
 
 
 pub struct Writer {
+    row_position: usize,
     column_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer
@@ -75,6 +76,7 @@ use lazy_static::lazy_static;
 use super::locks::mutex::Mutex;
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
+        row_position: 0,
         column_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),
         // 0xb8000 MMIO address for vga buffer
@@ -93,8 +95,7 @@ impl Writer {
                     self.new_line();
                 }
 
-                // Always print at the last line of buffer
-                let row = BUFFER_HEIGHT - 1;
+                let row = self.row_position;
                 let col = self.column_position;
 
                 let color_code = self.color_code;
@@ -123,7 +124,7 @@ impl Writer {
         }
     }
 
-    pub fn new_line(&mut self) {
+    pub fn scroll(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
@@ -131,13 +132,22 @@ impl Writer {
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
+        self.row_position -= 1;
+    }
+
+    pub fn new_line(&mut self) {
+        self.row_position += 1;
         self.column_position = 0;
+        
+        if self.row_position >= BUFFER_HEIGHT {
+            self.scroll();
+        }
     }
 
     pub fn backspace(&mut self) {
         if self.column_position > 0 {
             self.column_position -= 1;
-            let row = BUFFER_HEIGHT - 1;
+            let row = self.row_position;
             let col = self.column_position;
             let blank = ScreenChar {
                 ascii_char: b'\0',
