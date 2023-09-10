@@ -41,11 +41,8 @@ pub fn hlt_loop() -> ! {
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
-    use x86_64::instructions::port::Port;
-
     unsafe {
-        let mut port = Port::new(0xf4);
-        port.write(exit_code as u32);
+        core::arch::asm!("out dx, ax", in("dx") 0xf4 as u16, in("ax") exit_code as u32);
     }
 }
 
