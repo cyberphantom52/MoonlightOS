@@ -1,3 +1,4 @@
+use core::ptr::{read_volatile, write_volatile};
 const NULLCHAR: ScreenChar = ScreenChar {
     ascii_char: 0,
     color_code: ColorCode(15),
@@ -52,11 +53,10 @@ const BUFFER_WIDTH: usize = 80;
 // https://os.phil-opp.com/vga-text-mode/#volatile
 // Compiler doesn’t know that we really access VGA buffer memory (instead of normal RAM) and knows nothing about the side effect that some characters appear on the screen. 
 // So it might decide that these writes are unnecessary and can be omitted. 
-// Using volatile crate to avoid erroneous optimization of the Buffer
-use volatile::Volatile;
+// Using volatile read/write to avoid erroneous optimization of the Buffer
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT]
+    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT]
 }
 
 
@@ -99,11 +99,15 @@ impl Writer {
         let row = self.row_position;
         let col = self.column_position;
 
-        self.buffer.chars[row][col].write(ScreenChar {
+        let character = ScreenChar {
             ascii_char: byte,
             color_code: self.color_code,
-        });
-
+        };
+        
+        unsafe {
+            write_volatile(&mut self.buffer.chars[row][col], character);
+        }
+        
         self.column_position += 1;
     }
 
@@ -128,8 +132,10 @@ impl Writer {
     pub fn scroll(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+                unsafe {
+                    let character = read_volatile(&self.buffer.chars[row][col]);
+                    write_volatile(&mut self.buffer.chars[row - 1][col], character);
+                }
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
@@ -154,13 +160,17 @@ impl Writer {
         self.column_position -= 1;
         let row = self.row_position;
         let col = self.column_position;
-        self.buffer.chars[row][col].write(NULLCHAR);
+        unsafe { 
+            write_volatile(&mut self.buffer.chars[row][col], NULLCHAR);
+        }
         self.set_cursor_position();
     }
 
     fn clear_row(&mut self, row: usize) {
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(NULLCHAR);
+            unsafe {
+                write_volatile(&mut self.buffer.chars[row][col], NULLCHAR);
+            }
         }
     }
 
@@ -238,7 +248,7 @@ fn test_println_output() {
         writeln!(writer, "\n{}", s).expect("writeln failed");
         let row = writer.row_position - 1;
         for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[row][i].read();
+            let screen_char = unsafe { read_volatile(&writer.buffer.chars[row][i]) };
             assert_eq!(char::from(screen_char.ascii_char), c);
         }
     });
