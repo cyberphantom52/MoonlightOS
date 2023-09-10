@@ -38,7 +38,6 @@ dependencies = [
  "lazy_static",
  "pc-keyboard",
  "pic8259",
- "spin",
  "uart_16550",
  "volatile 0.2.7",
  "x86_64",
