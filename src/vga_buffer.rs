@@ -83,7 +83,7 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         row_position: 0,
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color::LightGray, Color::Black),
         // 0xb8000 MMIO address for vga buffer
         // https://os.phil-opp.com/vga-text-mode/#the-vga-text-buffer
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },

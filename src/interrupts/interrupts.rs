@@ -1,5 +1,5 @@
 use crate::{
-    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, print, shell::shell::SHELL,
+    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, println, shell::shell::SHELL,
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -17,7 +17,12 @@ lazy_static! {
 }
 
 pub fn init_idt() {
+    println!("[!] Loading IDT");
+    println!("    [+] Setting up exceptions");
+    println!("    [+] Setting up PIC interrupts");
+    println!("    [+] Setting up keyboard interrupts");
     IDT.load();
+    println!("    [+] Done")
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
@@ -62,7 +67,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
                     drop(shell);
                 }
 
-                _ => {},
+                _ => {}
             }
         }
     }

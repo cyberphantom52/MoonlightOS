@@ -26,10 +26,13 @@ pub enum QemuExitCode {
 }
 
 pub fn init() {
+    println!("[!] Booting...");
     gdt::init();
     Interrupts::init_idt();
     unsafe { Interrupts::PICS.lock().initialize() };
+    println!("[!] Enabling interrupts");
     x86_64::instructions::interrupts::enable(); 
+    println!("[!] MoonlightOS Initialized");
 }
 
 pub fn hlt_loop() -> ! {
