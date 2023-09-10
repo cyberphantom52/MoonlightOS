@@ -1,3 +1,8 @@
+const NULLCHAR: ScreenChar = ScreenChar {
+    ascii_char: 0,
+    color_code: ColorCode(0),
+};
+
 #[allow(dead_code)]
 #[repr(u8)]
 pub enum Color {
@@ -87,26 +92,19 @@ lazy_static! {
 
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
-        match byte {
-            b'\n' => self.new_line(),
-            b'\x08' => self.backspace(),
-            byte => {
-                if self.column_position >= BUFFER_WIDTH {
-                    self.new_line();
-                }
-
-                let row = self.row_position;
-                let col = self.column_position;
-
-                let color_code = self.color_code;
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii_char: byte,
-                    color_code,
-                });
-                
-                self.column_position += 1;
-            }
+        if self.column_position >= BUFFER_WIDTH {
+            self.new_line();
         }
+
+        let row = self.row_position;
+        let col = self.column_position;
+
+        self.buffer.chars[row][col].write(ScreenChar {
+            ascii_char: byte,
+            color_code: self.color_code,
+        });
+
+        self.column_position += 1;
     }
 
     pub fn write_char(&mut self, c: char) {
@@ -118,7 +116,8 @@ impl Writer {
         for byte in s.bytes() {
             match byte {
                 // printable ASCII byte or newline
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
+                0x20..=0x7e => self.write_byte(byte),
+                b'\n' => self.new_line(),
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
@@ -148,27 +147,20 @@ impl Writer {
     }
 
     pub fn backspace(&mut self) {
-        if self.column_position > 0 {
-            self.column_position -= 1;
-            let row = self.row_position;
-            let col = self.column_position;
-            let blank = ScreenChar {
-                ascii_char: b'\0',
-                color_code: self.color_code,
-            };
-            self.buffer.chars[row][col].write(blank);
+        if self.column_position == 0 {
+            return;
         }
+        
+        self.column_position -= 1;
+        let row = self.row_position;
+        let col = self.column_position;
+        self.buffer.chars[row][col].write(NULLCHAR);
         self.set_cursor_position();
     }
 
     fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_char: b' ',
-            color_code: self.color_code,
-        };
-
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
+            self.buffer.chars[row][col].write(NULLCHAR);
         }
     }
 
