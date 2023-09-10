@@ -236,8 +236,9 @@ fn test_println_output() {
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
         writeln!(writer, "\n{}", s).expect("writeln failed");
+        let row = writer.row_position - 1;
         for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+            let screen_char = writer.buffer.chars[row][i].read();
             assert_eq!(char::from(screen_char.ascii_char), c);
         }
     });
