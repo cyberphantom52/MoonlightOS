@@ -12,12 +12,11 @@ pub mod locks;
 pub mod interrupts;
 pub mod memory;
 pub mod shell;
+pub mod instructions;
 
 use core::panic::PanicInfo;
 use interrupts::gdt;
 use interrupts::interrupts as Interrupts;
-
-// use x86_64::instructions::hlt;
 
 #[repr(u32)]
 pub enum QemuExitCode {
@@ -31,13 +30,13 @@ pub fn init() {
     Interrupts::init_idt();
     unsafe { Interrupts::PICS.lock().initialize() };
     println!("[!] Enabling interrupts");
-    x86_64::instructions::interrupts::enable(); 
+    instructions::enable_interrupts();
     println!("[!] MoonlightOS Initialized");
 }
 
 pub fn hlt_loop() -> ! {
     loop {
-        x86_64::instructions::hlt();
+        instructions::hlt();
     }
 }
 
