@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 #[repr(u8)]
-enum Color {
+pub enum Color {
     Black = 0,
     Blue = 1,
     Green = 2,
@@ -108,6 +108,10 @@ impl Writer {
         }
     }
 
+    pub fn write_char(&mut self, c: char) {
+        self.write_byte(c as u8);
+    }
+
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
@@ -119,7 +123,7 @@ impl Writer {
         }
     }
 
-    fn new_line(&mut self) {
+    pub fn new_line(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
@@ -130,7 +134,7 @@ impl Writer {
         self.column_position = 0;
     }
 
-    fn backspace(&mut self) {
+    pub fn backspace(&mut self) {
         if self.column_position > 0 {
             self.column_position -= 1;
             let row = BUFFER_HEIGHT - 1;
@@ -152,6 +156,14 @@ impl Writer {
         for col in 0..BUFFER_WIDTH {
             self.buffer.chars[row][col].write(blank);
         }
+    }
+
+    pub fn set_colors(&mut self, foreground: Color, background: Color) {
+        self.color_code = ColorCode::new(foreground, background);
+    }
+
+    pub fn reset_colors(&mut self) {
+        self.set_colors(Color::LightGray, Color::Black);
     }
 }
 

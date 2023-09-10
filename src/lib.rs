@@ -11,6 +11,7 @@ pub mod vga_buffer;
 pub mod locks;
 pub mod interrupts;
 pub mod memory;
+pub mod shell;
 
 use core::panic::PanicInfo;
 use interrupts::gdt;

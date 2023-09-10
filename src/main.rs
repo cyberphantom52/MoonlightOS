@@ -10,7 +10,7 @@ use core::panic::PanicInfo;
 use x86_64::{structures::paging::Page, VirtAddr};
 use moonlight_os::memory::BootInfoFrameAllocator;
 use moonlight_os::memory;
-
+use moonlight_os::shell::shell::SHELL;
 
 entry_point!(kernel_main);
 
@@ -37,6 +37,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> !{
     #[cfg(test)]
     test_main();
     println!("It did not crash");
+    SHELL.lock().init();
     moonlight_os::hlt_loop();
 }
 
