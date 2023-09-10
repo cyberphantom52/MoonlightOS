@@ -1,6 +1,6 @@
 const NULLCHAR: ScreenChar = ScreenChar {
     ascii_char: 0,
-    color_code: ColorCode(0),
+    color_code: ColorCode(15),
 };
 
 #[allow(dead_code)]
@@ -174,7 +174,7 @@ impl Writer {
 
     // https://wiki.osdev.org/Text_Mode_Cursor#Moving_the_Cursor_2
     pub fn set_cursor_position(&self) {
-        let index: usize = self.row_position * BUFFER_WIDTH + self.column_position - 1;
+        let index: usize = self.row_position * BUFFER_WIDTH + self.column_position;
         
         use core::arch::asm;
         unsafe {
