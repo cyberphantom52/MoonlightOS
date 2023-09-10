@@ -1,5 +1,5 @@
 use crate::{
-    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, println, shell::shell::SHELL,
+    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, println, shell::shell::SHELL, instructions::{interrupts_enabled, disable_interrupts, enable_interrupts},
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -23,6 +23,24 @@ pub fn init_idt() {
     println!("    [+] Setting up keyboard interrupts");
     IDT.load();
     println!("    [+] Done")
+}
+
+// Ref: https://doc.rust-lang.org/rust-by-example/fn/closures/input_parameters.html
+pub fn without_interrupts<F>(f: F)
+where
+    F: FnOnce(),
+{
+    let status = interrupts_enabled();
+
+    if status {
+        disable_interrupts();
+    }
+
+    f();
+    
+    if status {
+        enable_interrupts();
+    }
 }
 
 pub const PIC_1_OFFSET: u8 = 32;
