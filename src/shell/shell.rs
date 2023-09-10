@@ -91,12 +91,12 @@ impl Shell {
             }
             _b if self.is_command("osinfo") => {
                 const OSINFO_ASCII_ART: &str = r#"
-                __  __ _                     _            -      -
-                |  \/  |                    | |          | |    | |
-                | \  / |  __   __    _ _ __ | |(_)_____  | |    | | _
-                | |\/| |/    \/   \ | '- \ \| || ||      | |___ |  __|
-                | |  | |     |     || |  | || || || ____ |  -- \|  |_
-                |_|  |_|\ ___/\___/ |_|  |_||_||_||_____||_|  |_|\_ _|
+                 __  __                   _ _       _     _    ___  ____  
+                |  \/  | ___   ___  _ __ | (_) __ _| |__ | |_ / _ \/ ___| 
+                | |\/| |/ _ \ / _ \| '_ \| | |/ _` | '_ \| __| | | \___ \ 
+                | |  | | (_) | (_) | | | | | | (_| | | | | |_| |_| |___) |
+                |_|  |_|\___/ \___/|_| |_|_|_|\__, |_| |_|\__|\___/|____/ 
+                                              |___/      
 "#;
 
                 let mut writer = WRITER.lock();
@@ -147,7 +147,7 @@ impl Shell {
             },
             _ => {
                 let mut writer = WRITER.lock();
-                writer.set_colors(Color::Red, Color::Black);
+                writer.set_colors(Color::Red, Color::White);
                 writer.write_string("Unknown command!");
                 writer.reset_colors();
                 writer.new_line();
