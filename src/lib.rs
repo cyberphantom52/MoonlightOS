@@ -3,21 +3,20 @@
 #![test_runner(test_runner)] // use our custom test runner
 #![feature(custom_test_frameworks)] // enable custom test frameworks
 #![reexport_test_harness_main = "test_main"] // rename the test entry point
-#![feature(abi_x86_interrupt)]  //This error occurs because the x86-interrupt calling convention is still unstable. To use it anyway, we have to explicitly enable it by adding #![feature(abi_x86_interrupt)]
+#![feature(abi_x86_interrupt)] //This error occurs because the x86-interrupt calling convention is still unstable. To use it anyway, we have to explicitly enable it by adding #![feature(abi_x86_interrupt)]
 #![feature(naked_functions)]
 
-pub mod serial;
-pub mod vga_buffer;
-pub mod locks;
+pub mod instructions;
 pub mod interrupts;
+pub mod locks;
 pub mod memory;
+pub mod serial;
 pub mod shell;
+pub mod vga_buffer;
 
 use core::panic::PanicInfo;
 use interrupts::gdt;
 use interrupts::interrupts as Interrupts;
-
-// use x86_64::instructions::hlt;
 
 #[repr(u32)]
 pub enum QemuExitCode {
@@ -31,22 +30,19 @@ pub fn init() {
     Interrupts::init_idt();
     unsafe { Interrupts::PICS.lock().initialize() };
     println!("[!] Enabling interrupts");
-    x86_64::instructions::interrupts::enable(); 
+    instructions::enable_interrupts();
     println!("[!] MoonlightOS Initialized");
 }
 
 pub fn hlt_loop() -> ! {
     loop {
-        x86_64::instructions::hlt();
+        instructions::hlt();
     }
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
-    use x86_64::instructions::port::Port;
-
     unsafe {
-        let mut port = Port::new(0xf4);
-        port.write(exit_code as u32);
+        core::arch::asm!("out dx, ax", in("dx") 0xf4 as u16, in("ax") exit_code as u32);
     }
 }
 
@@ -109,4 +105,3 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
     test_main();
     hlt_loop();
 }
-

@@ -1,6 +1,6 @@
-use uart_16550::SerialPort;
 use super::locks::mutex::Mutex;
 use lazy_static::lazy_static;
+use uart_16550::SerialPort;
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
@@ -13,10 +13,10 @@ lazy_static! {
 
 #[doc(hidden)]
 pub fn _print(args: ::core::fmt::Arguments) {
+    use crate::interrupts::interrupts;
     use core::fmt::Write;
-    use x86_64::instructions::interrupts;       
 
-    interrupts::without_interrupts(|| {         
+    interrupts::without_interrupts(|| {
         SERIAL1
             .lock()
             .write_fmt(args)

@@ -1,5 +1,9 @@
 use crate::{
-    interrupts::idt::InterruptDescriptorTable, locks::mutex::Mutex, println, shell::shell::SHELL,
+    instructions::{disable_interrupts, enable_interrupts, interrupts_enabled},
+    interrupts::idt::InterruptDescriptorTable,
+    locks::mutex::Mutex,
+    println,
+    shell::shell::SHELL,
 };
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -25,6 +29,24 @@ pub fn init_idt() {
     println!("    [+] Done")
 }
 
+// Ref: https://doc.rust-lang.org/rust-by-example/fn/closures/input_parameters.html
+pub fn without_interrupts<F>(f: F)
+where
+    F: FnOnce(),
+{
+    let status = interrupts_enabled();
+
+    if status {
+        disable_interrupts();
+    }
+
+    f();
+
+    if status {
+        enable_interrupts();
+    }
+}
+
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
@@ -39,7 +61,6 @@ extern "x86-interrupt" fn timer_interrupt_handler(_: &mut InterruptStackFrame) {
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
     use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-    use x86_64::instructions::port::Port;
 
     lazy_static! {
         static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
@@ -48,9 +69,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
     }
 
     let mut keyboard = KEYBOARD.lock();
-    let mut port = Port::new(0x60);
 
-    let scancode: u8 = unsafe { port.read() };
+    let scancode: u8;
+    unsafe {
+        core::arch::asm!("in al, dx", out("al") scancode, in("dx") 0x60 as u16);
+    }
+
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {

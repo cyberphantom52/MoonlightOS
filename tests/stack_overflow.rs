@@ -5,15 +5,14 @@
 use core::panic::PanicInfo;
 use moonlight_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
 use lazy_static::lazy_static;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use moonlight_os::interrupts::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 lazy_static! {
     static ref TEST_IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         unsafe {
-            idt.double_fault
-                .set_handler_fn(test_double_fault_handler)
-                .set_stack_index(moonlight_os::interrupts::gdt::DOUBLE_FAULT_IST_INDEX);
+            idt.add(0x8, test_double_fault_handler as u64);
+            idt.entries[0x8].set_stack_index(moonlight_os::interrupts::gdt::DOUBLE_FAULT_IST_INDEX);
         }
 
         idt
@@ -46,8 +45,11 @@ pub extern "C" fn _start() -> ! {
 
 #[allow(unconditional_recursion)]
 fn stack_overflow() {
-    stack_overflow(); 
-    volatile::Volatile::new(0).read(); 
+    stack_overflow();
+    let var = 0;
+    unsafe {
+        core::ptr::read_volatile(&var);
+    }
 }
 
 #[panic_handler]

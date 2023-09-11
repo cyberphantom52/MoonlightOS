@@ -1,3 +1,4 @@
+use core::ptr::{read_volatile, write_volatile};
 const NULLCHAR: ScreenChar = ScreenChar {
     ascii_char: 0,
     color_code: ColorCode(15),
@@ -42,7 +43,7 @@ impl ColorCode {
 // Each character in the vga buffer is of 2 bytes with the first being the char and 2nd being the byte
 struct ScreenChar {
     ascii_char: u8,
-    color_code: ColorCode
+    color_code: ColorCode,
 }
 
 // Standard size of VGA Buffer
@@ -50,23 +51,20 @@ const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
 // https://os.phil-opp.com/vga-text-mode/#volatile
-// Compiler doesn’t know that we really access VGA buffer memory (instead of normal RAM) and knows nothing about the side effect that some characters appear on the screen. 
-// So it might decide that these writes are unnecessary and can be omitted. 
-// Using volatile crate to avoid erroneous optimization of the Buffer
-use volatile::Volatile;
+// Compiler doesn’t know that we really access VGA buffer memory (instead of normal RAM) and knows nothing about the side effect that some characters appear on the screen.
+// So it might decide that these writes are unnecessary and can be omitted.
+// Using volatile read/write to avoid erroneous optimization of the Buffer
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT]
+    chars: [[ScreenChar; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
-
 
 pub struct Writer {
     row_position: usize,
     column_position: usize,
     color_code: ColorCode,
-    buffer: &'static mut Buffer
+    buffer: &'static mut Buffer,
 }
-
 
 // https://os.phil-opp.com/vga-text-mode/#lazy-statics
 // Statics are initialized at compile time.
@@ -76,9 +74,9 @@ pub struct Writer {
 // https://os.phil-opp.com/vga-text-mode/#spinlocks
 // Writer is immutable by default which is pretty useless.
 // A `static mut` can solve the problem its highly discouraged as it can lead to data races.
-// An alternative is to use a spinlock. 
-use lazy_static::lazy_static;
+// An alternative is to use a spinlock.
 use super::locks::mutex::Mutex;
+use lazy_static::lazy_static;
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         row_position: 0,
@@ -87,7 +85,7 @@ lazy_static! {
         // 0xb8000 MMIO address for vga buffer
         // https://os.phil-opp.com/vga-text-mode/#the-vga-text-buffer
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    });    
+    });
 }
 
 impl Writer {
@@ -99,10 +97,14 @@ impl Writer {
         let row = self.row_position;
         let col = self.column_position;
 
-        self.buffer.chars[row][col].write(ScreenChar {
+        let character = ScreenChar {
             ascii_char: byte,
             color_code: self.color_code,
-        });
+        };
+
+        unsafe {
+            write_volatile(&mut self.buffer.chars[row][col], character);
+        }
 
         self.column_position += 1;
     }
@@ -128,8 +130,10 @@ impl Writer {
     pub fn scroll(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+                unsafe {
+                    let character = read_volatile(&self.buffer.chars[row][col]);
+                    write_volatile(&mut self.buffer.chars[row - 1][col], character);
+                }
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
@@ -139,7 +143,7 @@ impl Writer {
     pub fn new_line(&mut self) {
         self.row_position += 1;
         self.column_position = 0;
-        
+
         if self.row_position >= BUFFER_HEIGHT {
             self.scroll();
         }
@@ -150,17 +154,21 @@ impl Writer {
         if self.column_position == 0 {
             return;
         }
-        
+
         self.column_position -= 1;
         let row = self.row_position;
         let col = self.column_position;
-        self.buffer.chars[row][col].write(NULLCHAR);
+        unsafe {
+            write_volatile(&mut self.buffer.chars[row][col], NULLCHAR);
+        }
         self.set_cursor_position();
     }
 
     fn clear_row(&mut self, row: usize) {
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(NULLCHAR);
+            unsafe {
+                write_volatile(&mut self.buffer.chars[row][col], NULLCHAR);
+            }
         }
     }
 
@@ -175,7 +183,7 @@ impl Writer {
     // https://wiki.osdev.org/Text_Mode_Cursor#Moving_the_Cursor_2
     pub fn set_cursor_position(&self) {
         let index: usize = self.row_position * BUFFER_WIDTH + self.column_position;
-        
+
         use core::arch::asm;
         unsafe {
             asm!("out dx, al", in("dx") 0x3d4, in("al") 0x0f as u8);
@@ -193,8 +201,6 @@ impl Writer {
         self.set_colors(Color::White, Color::Black);
     }
 }
-
-
 
 // Implemet fmt::Writer for our Writer so we can use rust's formatting macros like write!/writeln!
 use core::fmt;
@@ -219,25 +225,26 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
+    use crate::interrupts::interrupts;
     use core::fmt::Write;
-    use x86_64::instructions::interrupts;   
 
-    interrupts::without_interrupts(|| {     
+    interrupts::without_interrupts(|| {
         WRITER.lock().write_fmt(args).unwrap();
     });
 }
 
 #[test_case]
 fn test_println_output() {
+    use crate::interrupts::interrupts;
     use core::fmt::Write;
-    use x86_64::instructions::interrupts;
 
     let s = "Some test string that fits on a single line";
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
         writeln!(writer, "\n{}", s).expect("writeln failed");
+        let row = writer.row_position - 1;
         for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+            let screen_char = unsafe { read_volatile(&writer.buffer.chars[row][i]) };
             assert_eq!(char::from(screen_char.ascii_char), c);
         }
     });
