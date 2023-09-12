@@ -71,15 +71,9 @@ impl Shell {
     fn interpret(&mut self) {
         match self.buffer {
             _b if self.is_command("help") => print!("{}", HELP),
-            _b if self.is_command("osinfo") => {
-                Shell::osinfo();
-            }
-            _b if self.is_command("echo") => {
-                Shell::echo(&self);
-            }
-            _b if self.is_command("clear") => {
-                Shell::clear();
-            }
+            _b if self.is_command("osinfo") => self.osinfo(),
+            _b if self.is_command("echo") => self.echo(),
+            _b if self.is_command("clear") => self.clear(),
             _ => println!("Unknown command!"),
         }
     }
@@ -125,11 +119,11 @@ impl Shell {
         }
     }
 
-    fn clear() {
+    fn clear(&self) {
         WRITER.lock().clear_screen();
     }
 
-    fn osinfo() {
+    fn osinfo(&self) {
         const OSINFO_ASCII_ART: &str = r#"
         __  __                   _ _       _     _    ___  ____  
        |  \/  | ___   ___  _ __ | (_) __ _| |__ | |_ / _ \/ ___| 
