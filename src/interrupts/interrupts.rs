@@ -6,7 +6,8 @@ use crate::{
     shell::shell::SHELL,
 };
 use lazy_static::lazy_static;
-use pic8259::ChainedPics;
+use crate::pic::ChainedPics;
+
 
 use super::idt::InterruptStackFrame;
 
