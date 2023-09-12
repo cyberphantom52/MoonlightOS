@@ -1,8 +1,8 @@
 use lazy_static::lazy_static;
 
 use crate::locks::mutex::Mutex;
-use crate::{println, print};
 use crate::vga_buffer::{Color, WRITER};
+use crate::{print, println};
 
 const PROMPT: &str = "MoonlightOS> ";
 const HELP: &'static str = "+-------------------------------------------+
@@ -16,7 +16,7 @@ const HELP: &'static str = "+-------------------------------------------+
 
 lazy_static! {
     pub static ref SHELL: Mutex<Shell> = Mutex::new(Shell {
-        buffer: [0 as char; 256],
+        buffer: ['\0'; 256],
         cursor: 0,
     });
 }
@@ -28,7 +28,7 @@ pub struct Shell {
 
 impl Shell {
     pub fn init(&mut self) {
-        self.buffer = [0 as char; 256];
+        self.buffer = ['\0'; 256];
         self.cursor = 0;
 
         let mut writer = WRITER.lock();
@@ -42,27 +42,22 @@ impl Shell {
         self.buffer[self.cursor] = c;
         self.cursor += 1;
 
-        let mut writer = WRITER.lock();
-        writer.write_char(c);
-        drop(writer);
+        WRITER.lock().write_char(c);
     }
 
     pub fn backspace(&mut self) {
-        if self.cursor > 0 {
-            self.buffer[self.cursor] = 0 as char;
-            self.cursor -= 1;
-
-            let mut writer = WRITER.lock();
-            writer.backspace();
-            drop(writer);
+        if self.cursor == 0 {
+            return;
         }
+        
+        self.buffer[self.cursor] = '\0';
+        self.cursor -= 1;
+        WRITER.lock().backspace();
     }
 
     //shell enter
     pub fn enter(&mut self) {
-        let mut writer = WRITER.lock();
-        writer.new_line();
-        drop(writer);
+        WRITER.lock().new_line();
 
         self.interpret();
         self.init();
