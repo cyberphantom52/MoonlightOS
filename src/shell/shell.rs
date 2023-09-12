@@ -84,34 +84,15 @@ impl Shell {
 
     //commands
     fn echo(&self) {
-        let mut message_started = false;
-        if self.buffer[self.cursor - 1] != '"' {
-            let mut writer = WRITER.lock();
-            writer.set_colors(Color::Pink, Color::Black);
-            writer.write_string("Unknown command!");
-            writer.reset_colors();
-            writer.new_line();
-            drop(writer);
-            return;
-        }
-        for i in 0..self.cursor {
-            let c = self.buffer[i];
-
-            if c == '"' {
-                if message_started {
-                    let mut writer = WRITER.lock();
-                    writer.new_line();
-                    drop(writer);
-                    break;
-                } else {
-                    message_started = true;
-                }
-            } else if message_started {
-                let mut writer = WRITER.lock();
-                writer.write_char(c);
-                drop(writer);
+        let mut writer = WRITER.lock();
+        for c in self.buffer.iter().skip(5) {
+            if *c == '\0' {
+                break;
             }
+            writer.write_char(*c);
         }
+        writer.new_line();
+        drop(writer);
     }
 
     fn clear(&self) {
