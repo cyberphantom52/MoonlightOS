@@ -129,14 +129,11 @@ impl Shell {
 "#;
 
         let mut writer = WRITER.lock();
-        writer.set_colors(Color::Cyan, Color::Black);
+        writer.set_colors(Color::Red, Color::Black);
         writer.write_string(OSINFO_ASCII_ART);
         writer.reset_colors();
-        writer.new_line();
-        writer.write_string("OS Name: MoonlightOS");
-        writer.new_line();
-        writer.write_string("OS Version: 1.0.0");
-        writer.new_line();
+        writer.write_string("OS Name: MoonlightOS\n");
+        writer.write_string("OS Version: 0.1.0\n");
         drop(writer);
     }
 }
