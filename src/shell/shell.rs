@@ -143,9 +143,7 @@ impl Shell {
     }
 
     fn clear() {
-        let mut writer = WRITER.lock();
-        writer.clear_screen();
-        drop(writer);
+        WRITER.lock().clear_screen();
     }
 
     fn osinfo() {
