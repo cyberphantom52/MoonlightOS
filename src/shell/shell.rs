@@ -62,9 +62,6 @@ impl Shell {
 
     fn interpret(&mut self) {
         match self.buffer {
-            _b if self.is_command("ping") => {
-                Shell::ping();
-            }
             _b if self.is_command("help") => {
                 Shell::help();
             }
@@ -110,13 +107,6 @@ impl Shell {
         writer.write_string("| osinfo --> prints OS information          |");
         writer.new_line();
         writer.write_string(border);
-        writer.new_line();
-        drop(writer);
-    }
-
-    fn ping() {
-        let mut writer = WRITER.lock();
-        writer.write_string("pong");
         writer.new_line();
         drop(writer);
     }
