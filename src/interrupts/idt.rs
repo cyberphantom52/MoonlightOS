@@ -5,10 +5,16 @@ use x86_64::registers::segmentation::Segment;
 const IDT_ENTRIES: usize = 256;
 
 // Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table
-#[repr(C)]
-#[repr(align(16))]
+#[repr(C, align(16))]
 pub struct InterruptDescriptorTable {
     pub entries: [IdtEntry; IDT_ENTRIES],
+}
+
+// Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table#IDTR
+#[repr(C, packed)]
+pub struct IdtDescriptor {
+    size: u16,                               //idt size
+    offset: *const InterruptDescriptorTable, //pointer to idt
 }
 
 impl InterruptDescriptorTable {
@@ -23,7 +29,7 @@ impl InterruptDescriptorTable {
     #[inline]
     pub fn load(&self) {
         let descriptor = IdtDescriptor {
-            size: (core::mem::size_of::<InterruptDescriptorTable>() - 1) as u16,
+            size: (core::mem::size_of::<Self>() - 1) as u16,
             offset: self,
         };
         unsafe {
@@ -46,12 +52,6 @@ impl InterruptDescriptorTable {
     }
 }
 
-#[repr(C, packed)]
-pub struct IdtDescriptor {
-    size: u16,                               //idt size
-    offset: *const InterruptDescriptorTable, //pointer to idt
-}
-
 /// Reference: https://wiki.osdev.org/Interrupt_Descriptor_Table#Gate_Descriptor_2
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -68,16 +68,15 @@ impl IdtEntry {
     /// Creates a non-present IDT entry (but sets the must-be-one bits).
     #[inline]
     pub fn missing() -> Self {
-        let mut entry = IdtEntry {
-            offset_lower: 0,
+        let addr = exceptions::generic_handler as u64;
+        IdtEntry {
+            offset_lower: addr as u16,
             gdt_selector: 0,
             options: IdtEntryOptions::minimal(),
-            offset_middle: 0,
-            offset_high: 0,
+            offset_middle: (addr >> 16) as u16,
+            offset_high: (addr >> 32) as u32,
             reserved: 0,
-        };
-        entry.set_handler_addr(exceptions::generic_handler as u64);
-        entry
+        }
     }
 
     #[inline]
@@ -100,6 +99,14 @@ impl IdtEntry {
 }
 
 /// Represents the options field of an IDT entry.
+/// Structure:
+/// bit 0-2: IST index,
+/// bit 3-7: reserved,
+/// bit 8: 0 - interrupt gate, 1 - trap gate,
+/// bit 9-11: must be 1,
+/// bit 12: must be 0,
+/// bit 13-14: Descriptor Privilege Level (DPL),
+/// bit 15: present bit
 #[derive(Copy, Clone, PartialEq)]
 #[repr(transparent)]
 pub struct IdtEntryOptions(u16);
@@ -127,17 +134,9 @@ impl IdtEntryOptions {
     }
 
     /// Assigns a Interrupt Stack Table (IST) stack to this handler. The CPU will then always
-    /// switch to the specified stack before the handler is invoked. This allows kernels to
-    /// recover from corrupt stack pointers (e.g., on kernel stack overflow).
-    ///
-    /// An IST stack is specified by an IST index between 0 and 6 (inclusive). Using the same
-    /// stack for multiple interrupts can be dangerous when nested interrupts are possible.
-    ///
-    /// This function panics if the index is not in the range 0..7.
-    ///
-    /// ## Safety
-    /// This function is unsafe because the caller must ensure that the passed stack index is
-    /// valid and not used by other interrupts. Otherwise, memory safety violations are possible.
+    /// switch to the specified stack before the handler is invoked.
+    /// 
+    /// An IST stack is specified by an IST index between 0 and 6 (inclusive).
     #[inline]
     pub unsafe fn set_stack_index(&mut self, index: u16) -> &mut Self {
         // The hardware IST index starts at 1, but our software IST index
@@ -154,6 +153,7 @@ impl IdtEntryOptions {
 }
 
 /// Represents a protection ring level.
+/// 
 /// Reference: https://wiki.osdev.org/Security#Rings
 #[repr(u8)]
 pub enum PrivilegeLevel {
@@ -168,19 +168,6 @@ pub enum PrivilegeLevel {
 
     /// Privilege-level 3 (least privilege)
     Ring3 = 3,
-}
-
-impl PrivilegeLevel {
-    #[inline]
-    pub fn from_u16(value: u16) -> PrivilegeLevel {
-        match value {
-            0 => PrivilegeLevel::Ring0,
-            1 => PrivilegeLevel::Ring1,
-            2 => PrivilegeLevel::Ring2,
-            3 => PrivilegeLevel::Ring3,
-            i => panic!("{} is not a valid privilege level", i),
-        }
-    }
 }
 
 /// Wrapper type for the interrupt stack frame pushed by the CPU.
