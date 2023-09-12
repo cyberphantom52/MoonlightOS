@@ -83,12 +83,10 @@ impl Shell {
     }
 
     fn is_command(&self, command: &str) -> bool {
-        let mut i = 0;
-        for c in command.chars() {
+        for (i, c) in command.chars().enumerate() {
             if c != self.buffer[i] {
                 return false;
             }
-            i += 1;
         }
         true
     }
