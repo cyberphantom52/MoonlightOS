@@ -1,10 +1,18 @@
 use lazy_static::lazy_static;
 
 use crate::locks::mutex::Mutex;
-use crate::println;
+use crate::{println, print};
 use crate::vga_buffer::{Color, WRITER};
 
 const PROMPT: &str = "MoonlightOS> ";
+const HELP: &'static str = "+-------------------------------------------+
+| Available commands:                       |
+| echo  --> prints any string               |
+| help  --> lists available commands        |
+| clear --> clears the screen               |
+| osinfo --> prints OS information          |
++-------------------------------------------+
+";
 
 lazy_static! {
     pub static ref SHELL: Mutex<Shell> = Mutex::new(Shell {
@@ -62,9 +70,7 @@ impl Shell {
 
     fn interpret(&mut self) {
         match self.buffer {
-            _b if self.is_command("help") => {
-                Shell::help();
-            }
+            _b if self.is_command("help") => print!("{}", HELP),
             _b if self.is_command("osinfo") => {
                 Shell::osinfo();
             }
@@ -88,29 +94,6 @@ impl Shell {
     }
 
     //commands
-    fn help() {
-        let mut writer = WRITER.lock();
-        let border = "+-------------------------------------------+";
-
-        writer.write_string(border);
-        writer.new_line();
-        writer.write_string("| Available commands:                       |");
-        writer.new_line();
-        writer.write_string("| ping  --> prints pong                     |");
-        writer.new_line();
-        writer.write_string("| echo  --> prints any string               |");
-        writer.new_line();
-        writer.write_string("| help  --> lists available commands        |");
-        writer.new_line();
-        writer.write_string("| clear --> clears the screen               |");
-        writer.new_line();
-        writer.write_string("| osinfo --> prints OS information          |");
-        writer.new_line();
-        writer.write_string(border);
-        writer.new_line();
-        drop(writer);
-    }
-
     fn echo(&self) {
         let mut message_started = false;
         if self.buffer[self.cursor - 1] != '"' {
