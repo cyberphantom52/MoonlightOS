@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 
 use crate::locks::mutex::Mutex;
+use crate::println;
 use crate::vga_buffer::{Color, WRITER};
 
 const PROMPT: &str = "MoonlightOS> ";
@@ -76,9 +77,7 @@ impl Shell {
             _b if self.is_command("clear") => {
                 Shell::clear();
             }
-            _ => {
-                Shell::unknown_command();
-            }
+            _ => println!("Unknown command!"),
         }
     }
 
@@ -177,15 +176,6 @@ impl Shell {
         writer.write_string("OS Name: MoonlightOS");
         writer.new_line();
         writer.write_string("OS Version: 1.0.0");
-        writer.new_line();
-        drop(writer);
-    }
-
-    fn unknown_command() {
-        let mut writer = WRITER.lock();
-        writer.set_colors(Color::Red, Color::White);
-        writer.write_string("Unknown command!");
-        writer.reset_colors();
         writer.new_line();
         drop(writer);
     }
