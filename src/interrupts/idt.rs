@@ -26,8 +26,10 @@ impl InterruptDescriptorTable {
         }
     }
 
+    // Need to ensure IDT reference has static lifetime
+    // Reference: https://os.phil-opp.com/catching-exceptions/#safety
     #[inline]
-    pub fn load(&self) {
+    pub fn load(&'static self) {
         let descriptor = IdtDescriptor {
             size: (core::mem::size_of::<Self>() - 1) as u16,
             offset: self,
