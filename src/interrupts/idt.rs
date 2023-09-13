@@ -172,26 +172,9 @@ pub enum PrivilegeLevel {
     Ring3 = 3,
 }
 
-/// Wrapper type for the interrupt stack frame pushed by the CPU.
-///
-/// This wrapper type ensures that no accidental modification of the interrupt stack frame
-/// occurs, which can cause undefined behavior.
+/// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.
 #[repr(C)]
 pub struct InterruptStackFrame {
-    value: InterruptStackFrameValue,
-}
-
-impl core::fmt::Debug for InterruptStackFrame {
-    #[inline]
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        self.value.fmt(f)
-    }
-}
-
-/// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.
-#[derive(Clone)]
-#[repr(C)]
-pub struct InterruptStackFrameValue {
     /// This value points to the instruction that should be executed when the interrupt
     /// handler returns. For most interrupts, this value points to the instruction immediately
     /// following the last executed instruction. However, for some exceptions (e.g., page faults),
@@ -208,7 +191,7 @@ pub struct InterruptStackFrameValue {
     pub stack_segment: u64,
 }
 
-impl core::fmt::Debug for InterruptStackFrameValue {
+impl core::fmt::Debug for InterruptStackFrame {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("InterruptStackFrame")
             .field("instruction_pointer", &self.instruction_pointer)
