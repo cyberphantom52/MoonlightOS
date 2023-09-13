@@ -173,6 +173,7 @@ pub enum PrivilegeLevel {
 }
 
 /// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.
+#[derive(Debug)]
 #[repr(C)]
 pub struct InterruptStackFrame {
     /// This value points to the instruction that should be executed when the interrupt
@@ -189,16 +190,4 @@ pub struct InterruptStackFrame {
     pub stack_pointer: u64,
     /// The stack segment descriptor at the time of the interrupt (often zero in 64-bit mode).
     pub stack_segment: u64,
-}
-
-impl core::fmt::Debug for InterruptStackFrame {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.debug_struct("InterruptStackFrame")
-            .field("instruction_pointer", &self.instruction_pointer)
-            .field("code_segment", &self.code_segment)
-            .field("cpu_flags", &self.cpu_flags)
-            .field("stack_pointer", &self.stack_pointer)
-            .field("stack_segment", &self.stack_segment)
-            .finish()
-    }
 }
