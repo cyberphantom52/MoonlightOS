@@ -4,11 +4,9 @@ use crate::{
     locks::mutex::Mutex,
     println,
     shell::shell::SHELL,
+    pic::ChainedPics,
 };
 use lazy_static::lazy_static;
-use crate::pic::ChainedPics;
-
-
 use super::idt::InterruptStackFrame;
 
 lazy_static! {
