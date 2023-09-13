@@ -159,16 +159,9 @@ impl IdtEntryOptions {
 /// Reference: https://wiki.osdev.org/Security#Rings
 #[repr(u8)]
 pub enum PrivilegeLevel {
-    /// Privilege-level 0 (most privilege)
     Ring0 = 0,
-
-    /// Privilege-level 1 (moderate privilege)
     Ring1 = 1,
-
-    /// Privilege-level 2 (moderate privilege)
     Ring2 = 2,
-
-    /// Privilege-level 3 (least privilege)
     Ring3 = 3,
 }
 
