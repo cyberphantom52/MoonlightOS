@@ -1,5 +1,24 @@
 use super::idt::InterruptStackFrame;
 
+macro_rules! handler {
+    ($name:ident) => {{
+        #[naked]
+        pub extern "C" fn wrapper() -> ! {
+            unsafe {
+                core::arch::asm!(
+                    "mov rdi, rsp",
+                    "sub rsp, 8", // align stack pointer to 16 byte boundary
+                    "call {}",
+                    sym $name,
+                    options(noreturn)
+                );
+            }
+        }
+        wrapper as u64
+    }};
+}
+pub(crate) use handler;
+
 //CPU EXCEPTIONS HANDLERS
 // Reference: https://os.phil-opp.com/cpu-exceptions/#the-interrupt-calling-convention
 pub extern "x86-interrupt" fn div_error_handler(stack_frame: InterruptStackFrame) {
