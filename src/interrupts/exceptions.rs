@@ -1,12 +1,31 @@
 use super::idt::InterruptStackFrame;
 
+macro_rules! handler_with_err {
+    ($name:ident) => {{
+        #[naked]
+        pub extern "C" fn wrapper() -> ! {
+            unsafe {
+                core::arch::asm!(
+                    "pop rsi", // pop error code into rsi, C calling convention expects 2nd argument in rsi
+                    "mov rdi, rsp", // C calling convention expects 1st argument in rdi
+                    "sub rsp, 8", // align stack pointer to 16 byte boundary
+                    "call {}",
+                    sym $name,
+                    options(noreturn)
+                );
+            }
+        }
+        wrapper as u64
+    }};
+}
+
 macro_rules! handler {
     ($name:ident) => {{
         #[naked]
         pub extern "C" fn wrapper() -> ! {
             unsafe {
                 core::arch::asm!(
-                    "mov rdi, rsp",
+                    "mov rdi, rsp", // C calling convention expects 1st argument in rdi
                     "sub rsp, 8", // align stack pointer to 16 byte boundary
                     "call {}",
                     sym $name,
@@ -18,6 +37,7 @@ macro_rules! handler {
     }};
 }
 pub(crate) use handler;
+pub(crate) use handler_with_err;
 
 //CPU EXCEPTIONS HANDLERS
 // Reference: https://os.phil-opp.com/cpu-exceptions/#the-interrupt-calling-convention
