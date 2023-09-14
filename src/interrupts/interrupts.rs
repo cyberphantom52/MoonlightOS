@@ -15,7 +15,7 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.add_exceptions();
-        idt.add(PIC_1_OFFSET as usize, timer_interrupt_handler as u64);
+        idt.add(PIC_1_OFFSET as usize, handler!(timer_interrupt_handler));
         idt.add(33, handler!(keyboard_interrupt_handler));
         idt
     };
@@ -54,7 +54,8 @@ pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 pub static PICS: Mutex<ChainedPics> =
     Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
-extern "x86-interrupt" fn timer_interrupt_handler(_: &mut InterruptStackFrame) {
+#[no_mangle]
+extern "C" fn timer_interrupt_handler(_: &InterruptStackFrame) {
     unsafe {
         PICS.lock().notify_end_of_interrupt(PIC_1_OFFSET);
     }

@@ -7,16 +7,43 @@ use super::idt::InterruptStackFrame;
 
 */
 
+//TODO: use macros to save/restore scratch registers
 macro_rules! handler_with_err {
     ($name:ident) => {{
         #[naked]
         pub extern "C" fn wrapper() -> ! {
             unsafe {
                 core::arch::asm!(
-                    "pop rsi", // pop error code into rsi
+                    // Save scratch registers
+                    "push rax",
+                    "push rcx",
+                    "push rdx",
+                    "push rsi",
+                    "push rdi",
+                    "push r8",
+                    "push r9",
+                    "push r10",
+                    "push r11",
+
+                    "mov rsi, [rsp + 9*8]", // load error code into rsi
                     "mov rdi, rsp",
+                    "add rdi, 10*8", // calculate exception stack frame pointer. 10 because error code is also pushed to stack along with scratch registers
                     "sub rsp, 8", // align stack pointer to 16 byte boundary
                     "call {}",
+                    "add rsp, 8", // restore stack pointer
+
+                    // Restore scratch registers
+                    "pop r11",
+                    "pop r10",
+                    "pop r9",
+                    "pop r8",
+                    "pop rdi",
+                    "pop rsi",
+                    "pop rdx",
+                    "pop rcx",
+                    "pop rax",
+                    "add rsp, 8", // remove error code from stack
+                    "iretq",
                     sym $name,
                     options(noreturn)
                 );
@@ -32,10 +59,31 @@ macro_rules! handler {
         pub extern "C" fn wrapper() -> ! {
             unsafe {
                 core::arch::asm!(
+                    // Save scratch registers
+                    "push rax",
+                    "push rcx",
+                    "push rdx",
+                    "push rsi",
+                    "push rdi",
+                    "push r8",
+                    "push r9",
+                    "push r10",
+                    "push r11",
+
                     "mov rdi, rsp",
-                    "sub rsp, 8", // align stack pointer to 16 byte boundary
+                    "add rdi, 9*8", // calculate exception stack frame pointer
                     "call {}",
-                    "add rsp, 8",
+
+                    // Restore scratch registers
+                    "pop r11",
+                    "pop r10",
+                    "pop r9",
+                    "pop r8",
+                    "pop rdi",
+                    "pop rsi",
+                    "pop rdx",
+                    "pop rcx",
+                    "pop rax",
                     "iretq",
                     sym $name,
                     options(noreturn)
