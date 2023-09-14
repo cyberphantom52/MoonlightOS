@@ -1,4 +1,4 @@
-use super::exceptions;
+use super::exceptions::*;
 use bit_field::BitField;
 use x86_64::registers::segmentation::Segment;
 
@@ -45,12 +45,12 @@ impl InterruptDescriptorTable {
 
     //add exception handlers for various cpu exceptions
     pub fn add_exceptions(&mut self) {
-        self.add(0x0, exceptions::div_error_handler as u64);
-        self.add(0x3, exceptions::breakpoint_handler as u64);
-        self.add(0x6, exceptions::invalid_opcode_handler as u64);
-        self.add(0x8, exceptions::double_fault_handler as u64);
-        self.add(0xd, exceptions::general_protection_fault_handler as u64);
-        self.add(0xe, exceptions::page_fault_handler as u64);
+        self.add(0x0, handler!(div_error_handler));
+        self.add(0x3, handler!(breakpoint_handler));
+        self.add(0x6, handler!(invalid_opcode_handler));
+        self.add(0x8, handler_with_err!(double_fault_handler));
+        self.add(0xd, handler_with_err!(general_protection_fault_handler));
+        self.add(0xe, handler_with_err!(page_fault_handler));
     }
 }
 
@@ -70,7 +70,7 @@ impl IdtEntry {
     /// Creates a non-present IDT entry (but sets the must-be-one bits).
     #[inline]
     pub fn missing() -> Self {
-        let addr = exceptions::generic_handler as u64;
+        let addr = handler!(generic_handler);
         IdtEntry {
             offset_lower: addr as u16,
             gdt_selector: 0,
