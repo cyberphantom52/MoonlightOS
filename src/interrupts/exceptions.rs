@@ -35,6 +35,8 @@ macro_rules! handler {
                     "mov rdi, rsp",
                     "sub rsp, 8", // align stack pointer to 16 byte boundary
                     "call {}",
+                    "add rsp, 8",
+                    "iretq",
                     sym $name,
                     options(noreturn)
                 );
@@ -59,7 +61,7 @@ pub extern "C" fn invalid_opcode_handler(stack_frame: &InterruptStackFrame) {
 
 #[no_mangle]
 pub extern "C" fn breakpoint_handler(stack_frame: &InterruptStackFrame) {
-    panic!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+    crate::println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
 }
 
 #[no_mangle]
@@ -76,8 +78,8 @@ pub extern "C" fn general_protection_fault_handler(
 }
 
 #[no_mangle]
-pub extern "C" fn page_fault_handler(stack_frame: &InterruptStackFrame, _error_code: u64) {
-    panic!("EXCEPTION: PAGE FAULT\n{:#?}", stack_frame);
+pub extern "C" fn page_fault_handler(stack_frame: &InterruptStackFrame, error_code: u64) {
+    crate::print!("EXCEPTION: PAGE FAULT occured\nError Code: {:?}\n{:#?}", error_code, stack_frame);
 }
 
 #[no_mangle]

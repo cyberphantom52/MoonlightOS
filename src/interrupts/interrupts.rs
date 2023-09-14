@@ -1,5 +1,6 @@
 use crate::{
     instructions::{disable_interrupts, enable_interrupts, interrupts_enabled},
+    interrupts::exceptions::handler,
     interrupts::idt::InterruptDescriptorTable,
     locks::mutex::Mutex,
     println,
@@ -15,7 +16,7 @@ lazy_static! {
         let mut idt = InterruptDescriptorTable::new();
         idt.add_exceptions();
         idt.add(PIC_1_OFFSET as usize, timer_interrupt_handler as u64);
-        idt.add(33, keyboard_interrupt_handler as u64);
+        idt.add(33, handler!(keyboard_interrupt_handler));
         idt
     };
 }
@@ -59,7 +60,8 @@ extern "x86-interrupt" fn timer_interrupt_handler(_: &mut InterruptStackFrame) {
     }
 }
 
-extern "x86-interrupt" fn keyboard_interrupt_handler(_: InterruptStackFrame) {
+#[no_mangle]
+extern "C" fn keyboard_interrupt_handler(_: &InterruptStackFrame) {
     use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 
     lazy_static! {
