@@ -1,4 +1,11 @@
 use super::idt::InterruptStackFrame;
+/*
+ C Calling Convention:
+    - The first six integer arguments are passed in registers `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`
+    - Additional arguments are passed on the stack
+    - Results are returned in rax and rdx
+
+*/
 
 macro_rules! handler_with_err {
     ($name:ident) => {{
@@ -6,8 +13,8 @@ macro_rules! handler_with_err {
         pub extern "C" fn wrapper() -> ! {
             unsafe {
                 core::arch::asm!(
-                    "pop rsi", // pop error code into rsi, C calling convention expects 2nd argument in rsi
-                    "mov rdi, rsp", // C calling convention expects 1st argument in rdi
+                    "pop rsi", // pop error code into rsi
+                    "mov rdi, rsp",
                     "sub rsp, 8", // align stack pointer to 16 byte boundary
                     "call {}",
                     sym $name,
@@ -25,7 +32,7 @@ macro_rules! handler {
         pub extern "C" fn wrapper() -> ! {
             unsafe {
                 core::arch::asm!(
-                    "mov rdi, rsp", // C calling convention expects 1st argument in rdi
+                    "mov rdi, rsp",
                     "sub rsp, 8", // align stack pointer to 16 byte boundary
                     "call {}",
                     sym $name,
