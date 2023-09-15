@@ -12,11 +12,10 @@ use super::idt::InterruptStackFrame;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
-        let mut idt = InterruptDescriptorTable::new();
-        idt.add_exceptions();
-        idt.add(PIC_1_OFFSET as usize, timer_interrupt_handler as u64);
-        idt.add(33, keyboard_interrupt_handler as u64);
-        idt
+        InterruptDescriptorTable::new()
+            .add_exceptions()
+            .add(PIC_1_OFFSET as usize, timer_interrupt_handler as u64)
+            .add(33, keyboard_interrupt_handler as u64)
     };
 }
 

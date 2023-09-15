@@ -39,18 +39,19 @@ impl InterruptDescriptorTable {
         }
     }
 
-    pub fn add(&mut self, int: usize, handler: u64) {
+    pub fn add(mut self, int: usize, handler: u64) -> InterruptDescriptorTable {
         self.entries[int].set_handler_addr(handler);
+        self
     }
 
     //add exception handlers for various cpu exceptions
-    pub fn add_exceptions(&mut self) {
-        self.add(0x0, exceptions::div_error_handler as u64);
-        self.add(0x3, exceptions::breakpoint_handler as u64);
-        self.add(0x6, exceptions::invalid_opcode_handler as u64);
-        self.add(0x8, exceptions::double_fault_handler as u64);
-        self.add(0xd, exceptions::general_protection_fault_handler as u64);
-        self.add(0xe, exceptions::page_fault_handler as u64);
+    pub fn add_exceptions(self) -> InterruptDescriptorTable {
+        self.add(0x0, exceptions::div_error_handler as u64)
+            .add(0x3, exceptions::breakpoint_handler as u64)
+            .add(0x6, exceptions::invalid_opcode_handler as u64)
+            .add(0x8, exceptions::double_fault_handler as u64)
+            .add(0xd, exceptions::general_protection_fault_handler as u64)
+            .add(0xe, exceptions::page_fault_handler as u64)
     }
 }
 
