@@ -13,6 +13,7 @@ pub mod memory;
 pub mod serial;
 pub mod shell;
 pub mod vga_buffer;
+pub mod pic;
 
 use core::panic::PanicInfo;
 use interrupts::gdt;
