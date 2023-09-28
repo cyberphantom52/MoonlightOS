@@ -14,6 +14,7 @@ pub mod serial;
 pub mod shell;
 pub mod vga_buffer;
 pub mod pic;
+pub mod serialport;
 
 use core::panic::PanicInfo;
 use interrupts::gdt;

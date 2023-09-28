@@ -1,12 +1,13 @@
 use super::locks::mutex::Mutex;
 use lazy_static::lazy_static;
-use uart_16550::SerialPort;
+// use uart_16550::SerialPort;
+use crate::serialport::SerialPort;
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
         // 0x3F8 is the standard serial port
         let mut serial_port = unsafe { SerialPort::new(0x3F8) };
-        serial_port.init();
+        serial_port.init_serial();
         Mutex::new(serial_port)
     };
 }
